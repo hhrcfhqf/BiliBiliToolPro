@@ -1,0 +1,753 @@
+一、最终总览页面
+🏠 总览
+
+┌──────────────────────────────────────────────┐
+│ 🔍 OCI 免费状态                              │
+│                                              │
+│ OCI 账户                                     │
+│   Paid Account                               │
+│                                              │
+│ 当前实例                                     │
+│   实际扫描结果                               │
+│   实例类型                                   │
+│                                              │
+│ CPU                                          │
+│   当前：2 OCPU                               │
+│   Always Free：最多 2 OCPU*                  │
+│   使用：100%                                  │
+│                                              │
+│ 内存                                         │
+│   当前：12 GB                                │
+│   Always Free：最多 12 GB*                   │
+│   使用：100%                                  │
+│                                              │
+│ 存储                                         │
+│   当前 Boot Volume：XX GB                    │
+│   其他 Block Volume：XX GB                   │
+│   总计：XX / 200 GB                          │
+│                                              │
+│ 网络                                         │
+│   公网 IPv4                                  │
+│   IPv6                                       │
+│   出站流量相关状态                           │
+│                                              │
+│ Always Free 规则检查                         │
+│   CPU       🟢 / 🟡 / 🔴                    │
+│   内存      🟢 / 🟡 / 🔴                    │
+│   存储      🟢 / 🟡 / 🔴                    │
+│   其他资源  🟢 / 🟡 / 🔴                    │
+│                                              │
+│ 💰 潜在收费风险                              │
+│                                              │
+│ 📜 Oracle 政策                               │
+│   最近变化                                   │
+│   AI 解读                                    │
+│                                              │
+│                         [立即检查]           │
+└──────────────────────────────────────────────┘
+
+
+🔧 系统监控
+
+┌──────────────────────────────────────────────┐
+│ oci-linux-lab              🟢 运行中         │
+│ oci-free-guard.timer       🟢 运行中         │
+│ ollama                     🟢 运行中         │
+│                                              │
+│ ……原有系统监控内容保持不变……                 │
+└──────────────────────────────────────────────┘
+总览页面删除
+
+原来的：
+
+系统概览
+├── CPU
+├── 内存
+└── 磁盘
+
+删除。
+
+因为这些现在属于：
+
+🔍 OCI 免费状态
+
+原来的：
+
+BBR
+
+从总览删除。
+
+原来的：
+
+防火墙
+
+从总览删除。
+
+原来的：
+
+服务状态
+
+不再单独保留旧卡片，而由：
+
+🔧 系统监控
+
+统一呈现。
+
+二、🔧 系统监控——这里是绝对不能乱改的部分
+
+你特别强调了这一点，我会按照下面的规则处理：
+
+现有监控逻辑
+
+原封不动。
+
+也就是说现有：
+
+MONITORED_SERVICES
+ERROR_SERVICES
+_failed_units()
+_journal_errors()
+collect()
+
+这些检测逻辑不会因为增加 OCI 模块而重写。
+
+只增加一个
+oci-free-guard.timer
+
+最终监控对象：
+
+oci-linux-lab
+oci-free-guard.timer
+ollama
+
+以及你现在已经存在的其他系统监控项目。
+
+不重复
+
+目前已经有：
+
+"Ollama": "ollama.service"
+
+所以：
+
+❌ 不再增加第二个 Ollama。
+
+目前已经有：
+
+"Panel": "oci-linux-lab.service"
+
+所以：
+
+❌ 不再增加第二个 oci-linux-lab。
+
+只需要让 UI 显示名称符合你的要求：
+
+oci-linux-lab
+三、系统监控“增加”而不是“重构”
+
+这一点我会作为修改脚本中的硬性规则：
+
+现有 system_monitor.py
+        │
+        ├── 原有监控
+        │      ↓
+        │   保留
+        │
+        └── 新增
+               ↓
+       oci-free-guard.timer
+
+不会变成：
+
+旧 system_monitor.py
+        ↓
+全部重写
+        ↓
+新的监控系统
+
+不这么做。
+
+四、🔍 OCI 免费状态独立模块
+
+这个模块不会写进 overview.js 一坨代码里。
+
+保持：
+
+panel/
+├── oci_free.py
+├── system_monitor.py
+├── security.py
+├── singbox.py
+└── server.py
+
+前端：
+
+static/modules/
+├── overview.js
+├── overview-oci.js
+├── overview-monitor.js
+├── security.js
+└── singbox.js
+
+也就是：
+
+overview.js
+   │
+   ├── overview-oci.js
+   │
+   └── overview-monitor.js
+
+这样以后你要单独修改 OCI 免费状态，不需要碰系统监控。
+
+五、OCI 免费状态必须“实际扫描”
+
+这一点也锁死。
+
+不能：
+
+current_cpu = 2
+current_memory = 12
+storage = 200
+
+直接写死。
+
+而是实际读取：
+
+/proc/cpuinfo
+/proc/meminfo
+lsblk
+df
+ip
+ss
+systemctl
+
+以及现有 OCI/系统可获得的信息。
+
+CPU
+
+实际扫描：
+
+当前：2 OCPU
+
+再和：
+
+Always Free：2 OCPU
+
+比较。
+
+结果：
+
+🟢
+内存
+
+实际：
+
+MemTotal ≈ 12 GB
+
+显示：
+
+当前：12 GB
+Always Free：最多 12 GB*
+使用：100%
+
+这里的：
+
+使用：100%
+
+指的是Always Free 配额使用率。
+
+不是 Linux 当前内存利用率。
+
+Linux 当前实际内存使用率可以继续由系统监控负责。
+
+六、存储必须区分两种“使用率”
+
+你这台机器现在：
+
+OCI Block Volume：
+200 GB
+
+但 Linux：
+
+Filesystem：
+194 GB
+已使用：
+7.9 GB
+使用率：
+5%
+
+所以页面必须分别表达：
+
+存储
+
+Boot Volume：
+200 GB
+
+其他 Block Volume：
+0 GB
+
+OCI 总计：
+200 / 200 GB
+
+Always Free：
+200 GB
+
+OCI 配额使用：
+100%
+
+同时不能误导成：
+
+磁盘已经用满
+
+因为实际上：
+
+Linux 文件系统只使用约 5%
+
+这两个概念完全不同。
+
+七、网络
+
+显示：
+
+网络
+
+公网 IPv4：
+146.235.192.73
+
+IPv6：
+未检测到 Global IPv6
+
+出站流量：
+无法从实例内部确认 OCI 月度账务用量
+
+不会把：
+
+TX 374 MB
+
+直接冒充成：
+
+OCI 本月出站 374 MB
+
+因为这是错误的。
+
+八、Always Free 规则检查
+
+最终类似：
+
+Always Free 规则检查
+
+CPU
+🟢 2 / 2 OCPU
+
+内存
+🟢 12 / 12 GB
+
+存储
+🟢 200 / 200 GB
+
+其他资源
+🟡 部分项目无法从实例内部确认
+
+颜色含义：
+
+🟢 = 已确认符合
+🟡 = 无法完整确认 / 需要 OCI API
+🔴 = 实际扫描明确超过规则
+
+不会因为“没有数据”就假装绿色。
+
+九、💰 潜在收费风险
+
+这个区域也是动态生成。
+
+例如当前机器可以得到：
+
+💰 潜在收费风险
+
+🟢 计算资源
+2 OCPU / 2 OCPU
+
+🟢 内存
+12 GB / 12 GB
+
+🟢 Block Volume
+200 GB / 200 GB
+
+🟡 OCI 月度出站流量
+无法从实例内部确认
+
+🟡 OCI 账户状态
+当前实例无法直接确认账户计费状态
+
+如果以后发现超过：
+
+2 OCPU
+12 GB
+200 GB
+
+才显示对应：
+
+🔴
+十、📜 Oracle 政策
+
+这里继续使用你已经存在的：
+
+oci-free-guard.timer
+
+而不是另外搞一个新的政策检测服务。
+
+架构：
+
+oci-free-guard.timer
+        ↓
+现有 guard/check.sh
+        ↓
+Oracle 官方页面
+        ↓
+页面变化检测
+        ↓
+结构化状态
+        ↓
+OCI 免费状态模块
+
+如果政策发生变化：
+
+📜 Oracle 政策
+
+⚠ 检测到官方政策页面变化
+
+最近检查：
+2026-09-19 xx:xx
+
+AI 解读：
+……
+
+AI 只负责：
+
+解释政策变化
+
+不负责决定：
+
+“你会不会被收费”。
+
+收费/Always Free 判断由确定性代码负责。
+
+十一、🛡 安全页面
+
+这里按照你的要求，把现在总览的防火墙模块完整移动过来。
+
+最终：
+
+🛡 安全
+
+├── UFW 状态
+│
+├── 默认策略
+│
+├── 当前规则
+│
+├── 添加规则
+│
+├── 修改规则
+│
+└── 删除规则
+当前规则
+
+会实际读取：
+
+ufw status numbered
+
+而不是使用旧的静态数据。
+
+比如：
+
+防火墙规则
+
+#   方向   端口       协议   动作
+1   IN     22         TCP    ALLOW
+2   IN     80         TCP    ALLOW
+3   IN     443        TCP    ALLOW
+4   IN     8445       UDP    ALLOW
+5   IN     2053       TCP    ALLOW
+6   IN     2053       UDP    ALLOW
+7   IN     8443       TCP    ALLOW
+8   IN     12345      UDP    ALLOW
+
+IPv6 规则也实际读取。
+
+十二、增加规则
+
+UI：
+
+添加防火墙规则
+
+方向：
+[ 入站 ▼ ]
+
+动作：
+[ ALLOW ▼ ]
+
+协议：
+[ TCP ▼ ]
+
+端口：
+[ 12345 ]
+
+来源：
+[ Anywhere ]
+
+备注：
+[ TUIC ]
+
+              [添加规则]
+
+支持：
+
+TCP
+UDP
+TCP + UDP
+
+支持：
+
+22
+80
+443
+8000:9000
+
+并进行严格参数验证。
+
+十三、修改规则
+
+例如：
+
+12345/udp
+
+点击：
+
+[修改]
+
+变成：
+
+原规则：
+12345/udp ALLOW IN
+
+修改为：
+
+端口：
+[12345]
+
+协议：
+[UDP]
+
+动作：
+[ALLOW]
+
+方向：
+[IN]
+
+来源：
+[Anywhere]
+
+备注：
+[TUIC]
+
+[取消] [确认修改]
+
+修改前必须二次确认。
+
+十四、删除规则
+
+点击：
+
+[删除]
+
+显示：
+
+确认删除？
+
+ALLOW IN 12345/udp
+备注：TUIC
+
+此操作将立即修改 UFW。
+
+[取消] [确认删除]
+
+然后重新：
+
+ufw status numbered
+
+读取真实结果。
+
+十五、启用 / 禁用 UFW
+
+也做成真实操作：
+
+UFW
+
+当前状态：
+🟢 Active
+
+[禁用 UFW]
+
+如果点击：
+
+确认禁用 UFW？
+
+禁用后服务器防火墙规则将不再生效。
+
+[取消]
+[确认禁用]
+
+启用同理。
+
+十六、特别处理 SSH 锁死风险
+
+这个我会在模块里专门处理。
+
+比如用户试图删除：
+
+22/tcp ALLOW IN
+
+页面先提示：
+
+⚠ 注意
+
+当前服务器 SSH 使用 TCP 22。
+
+删除此规则可能导致你失去 SSH 访问。
+
+确认继续？
+
+这不是阻止用户操作，而是避免误操作。
+
+十七、systemd 权限不会直接粗暴放开
+
+你当前：
+
+ProtectSystem=strict
+NoNewPrivileges=true
+
+这些安全设置我不会为了 UFW 直接全部删除。
+
+会采用独立、受控的 UFW 管理入口，让 Panel 只能执行经过严格验证的 UFW 操作。
+
+整体：
+
+浏览器
+  ↓
+security.js
+  ↓
+/api/security/...
+  ↓
+security.py
+  ↓
+参数验证
+  ↓
+受控 UFW 操作
+  ↓
+ufw
+  ↓
+重新读取实际状态
+  ↓
+返回浏览器
+
+而不是：
+
+浏览器
+ ↓
+shell command
+十八、BBR
+
+按照你之前的要求：
+
+总览
+
+❌ 删除
+
+安全
+
+❌ 删除
+
+系统 → sing-box
+
+增加：
+
+📦 sing-box
+
+……
+
+🌐 网络优化
+
+TCP Congestion Control
+当前：bbr
+
+可用：
+reno
+cubic
+bbr
+
+TUIC
+congestion_control：bbr
+
+只移动展示位置，不改变你现在实际 BBR 配置。
+
+十九、最终模块结构
+
+最终代码大致保持：
+
+/opt/oci-zero-cost-lab/
+
+├── panel/
+│   ├── server.py
+│   ├── security.py
+│   ├── system_monitor.py
+│   ├── oci_free.py              ← 新增
+│   ├── system.py
+│   ├── singbox.py
+│   └── ...
+│
+├── guard/
+│   ├── check.sh                 ← 升级现有
+│   ├── status.json
+│   ├── alerts.log
+│   └── ...
+│
+├── scripts/
+│   └── ufw-manager              ← 受控防火墙操作
+│
+└── ...
+
+前端：
+
+panel/static/modules/
+
+├── overview.js
+├── overview-oci.js              ← 新增
+├── overview-monitor.js          ← 保留，只做必要增加
+├── security.js                  ← UFW 管理
+├── singbox.js                   ← 网络优化
+└── ...
+二十、这次修改的硬性原则
+
+我建议把下面这段直接作为这次修改脚本的设计约束：
+
+1. 不重写系统监控核心逻辑
+2. 不删除现有系统监控项目
+3. 仅增加 oci-free-guard.timer
+4. 不重复增加 ollama
+5. 不重复增加 oci-linux-lab
+6. 不创建第二个 oci-free-guard.timer
+7. 不把 OCI 判断写死
+8. 不让 Ollama 决定计费状态
+9. 不把 Linux 网卡 TX 当成 OCI 月度流量
+10. 不把 200GB OCI 配额使用率和 Linux 磁盘使用率混淆
+11. 防火墙从总览移动到安全
+12. 防火墙必须实际读取 UFW
+13. 防火墙支持增加、修改、删除、启用、禁用
+14. 所有防火墙修改必须确认
+15. 所有输入严格验证，禁止 shell injection
+16. BBR 从总览/安全移动到 sing-box → 网络优化
+17. 保持 Python / JS / Guard 模块化
+18. 修改后必须重新检查实际服务、UFW、sing-box、Panel API
+
+这就是后面实际写代码的基准版本。
