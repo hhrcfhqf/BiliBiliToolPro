@@ -1,1283 +1,1940 @@
-===== security.js =====
-1:import { ufwStart } from "./security-ufw.js";
-5:export async function render() {
-37:    ufwStart();
-
-===== singbox.js =====
-1:import { singboxNetworkStart } from "./singbox-network.js";
-7:export async function render() {
-141:   <button onclick="restartSB()">重启 sing-box</button>
-151:    singboxNetworkStart();
-154:async function restartSB(){
-312:window.restartSB = restartSB;
-
-===== security-ufw.js =====
-6: * 不保留跨页面 booted 状态。
-7: * Security 页面进入时由 security.js 显式调用 ufwStart()。
-11:function root() {
-12:    return document.querySelector("#app")
-241:export function ufwStart() {
-243:        const app = document.querySelector("#app");
-251:// V3.2.2-MOUNT-FIX: 禁止 import 时自动执行 ufwStart().
-
-===== singbox-network.js =====
-6: * 不保留跨页面 mounted 状态。
-13:    const main = document.querySelector("#app")
-24:    const area = document.querySelector("#app")
-65:export function singboxNetworkStart() {
-67:        const app = document.querySelector("#app");
-74:// V3.2.2-MOUNT-FIX: 禁止 import 时自动执行 singboxNetworkStart().
-
-[V3.2.2-FIX-ROBUST] 07. 严格验证修复结果
-[OK] 页面挂载隔离检查通过
-
-[V3.2.2-FIX-ROBUST] 08. JavaScript 语法检查
-[WARN] 未安装 node
-[WARN] 跳过 node --check
-
-[V3.2.2-FIX-ROBUST] 09. 确认后端核心文件未被修改
-[OK] untouched: /opt/oci-zero-cost-lab/panel/server.py
-[OK] untouched: /opt/oci-zero-cost-lab/panel/system_monitor.py
-[OK] untouched: /opt/oci-zero-cost-lab/panel/system_updates.py
-
-[V3.2.2-FIX-ROBUST] 10. 保存变更记录
-变更记录：/opt/oci-zero-cost-lab/backup/frontend-mount-fix-robust-20261008-070606/CHANGESET.txt
-
-[V3.2.2-FIX-ROBUST] 11. 重启唯一 Panel
-[OK] oci-linux-lab.service active
-
-[V3.2.2-FIX-ROBUST] 12. 检查 /healthz
-{"ok": true, "service": "oci-linux-lab", "version": "2.0.0-modular"}
-[OK] /healthz 正常
-
-[V3.2.2-FIX-ROBUST] 13. 检查四个前端资源
-/static/modules/security.js                                    HTTP 200
-/static/modules/singbox.js                                     HTTP 200
-/static/modules/security-ufw.js                                HTTP 200
-/static/modules/singbox-network.js                             HTTP 200
-
-[V3.2.2-FIX-ROBUST] 14. 修复完成
-
-==============================================================
-V3.2.2 Frontend Mount Fix - FINAL ROBUST
-==============================================================
-
-备份目录：
-  /opt/oci-zero-cost-lab/backup/frontend-mount-fix-robust-20261008-070606
-
-本次修改：
-  [OK] UFW 禁止 import 即执行
-  [OK] Sing-box Network 禁止 import 即执行
-  [OK] UFW 使用当前 #app
-  [OK] Network 使用当前 #app
-  [OK] UFW 删除跨页面 booted 状态
-  [OK] Network 删除跨页面 mounted 状态
-  [OK] Security 页面主动启动 UFW
-  [OK] Sing-box 页面主动启动 Network
-
-未修改：
-  server.py
-  system_monitor.py
-  system_updates.py
-  sing-box
-  Caddy
-  Ollama
-  Guard
-  systemd 架构
-
-浏览器强制刷新：
-  Cmd + Shift + R
-
-页面测试：
-  Overview
-    -> Security
-    -> Overview
-    -> Sing-box
-    -> Overview
-
-预期：
-  Overview  : 无 UFW / 无网络优化
-  Security  : 有 UFW
-  Sing-box  : 有网络优化
-  回 Overview: 两者消失
-
-==============================================================
-root@hhrcfhqf-oracle-cloud:~# cat >/home/ubuntu/oci-linux-lab-update-failure-audit.sh <<'EOF'
+root@hhrcfhqf-oracle-cloud:~# cat >/home/ubuntu/oci-linux-lab-caddy-fetch-audit.sh <<'EOF'
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-OUT="/tmp/oci-update-failure-audit-$(date +%Y%m%d-%H%M%S).txt"
 PANEL="/opt/oci-zero-cost-lab/panel"
+STATIC="$PANEL/static"
+MODULES="$STATIC/modules"
+
+SYSTEM_UPDATES="$PANEL/system_updates.py"
+SERVER="$PANEL/server.py"
+API="$STATIC/core/api.js"
+UPDATE_JS="$MODULES/system-update.js"
+CADDY_UPDATER="/opt/oci-zero-cost-lab/scripts/caddy-update"
+
+STAMP="$(date +%Y%m%d-%H%M%S)"
+OUT="/tmp/oci-caddy-fetch-audit-${STAMP}.txt"
 
 exec > >(tee "$OUT") 2>&1
 
 echo "=============================================================="
-echo "OCI Linux Lab - UPDATE FAILURE AUDIT"
+echo "OCI Linux Lab - Caddy Failed to Fetch Audit"
 echo "=============================================================="
 echo "TIME: $(date -Is)"
 echo
 
-echo "===== 01. SYSTEM ====="
-uname -a
-echo
-cat /etc/os-release | sed -n '1,12p'
-echo
-printf 'ARCH='
-uname -m
-echo
+###############################################################################
+# 01. 基本状态
+###############################################################################
 
-echo "===== 02. SING-BOX ====="
-if command -v sing-box >/dev/null 2>&1; then
-    sing-box version || true
-    echo
-    command -v sing-box
-    ls -lh "$(command -v sing-box)" || true
-else
-    echo "sing-box command not found"
-fi
-echo
+echo "===== 01. BASIC ====="
 
-echo "===== 03. CANDIDATE UPDATE FILES ====="
-find "$PANEL" -maxdepth 4 -type f \
-    \( -name 'system_updates.py' \
-    -o -name 'system-update.js' \
-    -o -name '*update*.py' \
-    -o -name '*update*.js' \) \
-    -print 2>/dev/null || true
-echo
+echo "Panel:"
+systemctl is-active oci-linux-lab.service || true
 
-echo "===== 04. CURL / DOWNLOAD / RELEASE SEARCH ====="
-grep -RniE \
-    'curl|wget|releases/download|api\.github\.com|sha256|sha256sum|checksum|checksums|digest|sing-box' \
-    "$PANEL" \
-bash /home/ubuntu/oci-linux-lab-update-failure-audit.shit.sh========"' \l|sha256sum|checksum|digest' \
+echo
+echo "Caddy:"
+systemctl is-active caddy.service || true
+
+echo
+echo "Caddy version:"
+/usr/bin/caddy version || true
+
+echo
+echo "Panel health:"
+curl -fsS \
+    --max-time 10 \
+    http://127.0.0.1:3000/healthz \
+bash /home/ubuntu/oci-linux-lab-caddy-fetch-audit.shit.sh==========="##########t|Main process exited' \mctl restart|rollback' \
 ==============================================================
-OCI Linux Lab - UPDATE FAILURE AUDIT
+OCI Linux Lab - Caddy Failed to Fetch Audit
 ==============================================================
-TIME: 2026-10-08T07:13:00+00:00
+TIME: 2026-10-08T08:00:33+00:00
 
-===== 01. SYSTEM =====
-Linux hhrcfhqf-oracle-cloud 6.8.0-1054-oracle #55~22.04.1-Ubuntu SMP Tue May 26 22:18:18 UTC 2026 aarch64 aarch64 aarch64 GNU/Linux
+===== 01. BASIC =====
+Panel:
+active
 
-PRETTY_NAME="Ubuntu 22.04.5 LTS"
-NAME="Ubuntu"
-VERSION_ID="22.04"
-VERSION="22.04.5 LTS (Jammy Jellyfish)"
-VERSION_CODENAME=jammy
-ID=ubuntu
-ID_LIKE=debian
-HOME_URL="https://www.ubuntu.com/"
-SUPPORT_URL="https://help.ubuntu.com/"
-BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
-PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
-UBUNTU_CODENAME=jammy
+Caddy:
+active
 
-ARCH=aarch64
+Caddy version:
+v2.11.4 h1:XKxkMTgNSizEvKG6QHue6cAsFOteU2qA61w2tKkCWi0=
 
-===== 02. SING-BOX =====
-sing-box version 1.14.1
+Panel health:
+{"ok": true, "service": "oci-linux-lab", "version": "2.0.0-modular"}
+===== 02. SYSTEM_UPDATES CADDY BRANCH =====
+elif component == "caddy":
 
-Environment: go1.26.8 linux/arm64
-Tags: with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,with_cloudflared,with_naive_outbound,with_usbip,with_openvpn,with_openconnect,badlinkname,tfogo_checklinkname0,with_musl
-Revision: 1ac1a339cb1223e9c70eae14c44411c75033c02d
-CGO: enabled
+        # Caddy 更新独立为模块 updater。
+        # 不修改 Caddyfile。
+        rc, out = _run(
+            [
+                "systemd-run",
+                "--wait",
+                "--pipe",
+                "--collect",
+                "/opt/oci-zero-cost-lab/scripts/caddy-update",
+            ],
+            timeout=900
+        )
+    
 
-/usr/bin/sing-box
--rwxr-xr-x 1 root root 82M Sep 14 17:43 /usr/bin/sing-box
+===== 03. CADDY UPDATER =====
+Path:
+/opt/oci-zero-cost-lab/scripts/caddy-update
 
-===== 03. CANDIDATE UPDATE FILES =====
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js
-/opt/oci-zero-cost-lab/panel/system_updates.py
+SHA256:
+ed1800903df0dcf09b6a9eddf95f55b06b8acb0f439434a19e3915cea54ad63e  /opt/oci-zero-cost-lab/scripts/caddy-update
 
-===== 04. CURL / DOWNLOAD / RELEASE SEARCH =====
-/opt/oci-zero-cost-lab/panel/common.py:8:SINGBOX=Path("/etc/sing-box/config.json")
-/opt/oci-zero-cost-lab/panel/common.py:104:      "services":{x:service_active(x) for x in ("sing-box","caddy","oci-linux-lab","ollama","oci-free-guard.timer")}
-/opt/oci-zero-cost-lab/panel/server.py:105:            if not real or not secrets.compare_digest(tok,real): self.page(b"not found",404); return
-/opt/oci-zero-cost-lab/panel/auth.py:26:        dig=hmac.new(key,msg,hashlib.sha1).digest()
-/opt/oci-zero-cost-lab/panel/auth.py:29:        if hmac.compare_digest(f"{n%1000000:06d}",str(code).strip()):
-/opt/oci-zero-cost-lab/panel/auth.py:40:    return bool(u and p and secrets.compare_digest(user,u) and secrets.compare_digest(pw,p))
-/opt/oci-zero-cost-lab/panel/singbox.py:12:    rc,ver=run(["sing-box","version"])
-/opt/oci-zero-cost-lab/panel/singbox.py:13:    rc2,chk=run(["sing-box","check","-c",str(SINGBOX)],timeout=30)
-/opt/oci-zero-cost-lab/panel/singbox.py:15:            "active":service_active("sing-box"),"nodes":nodes}
-/opt/oci-zero-cost-lab/panel/singbox.py:17:    rc,out=run(["systemctl","restart","sing-box"],timeout=30)
-/opt/oci-zero-cost-lab/panel/system_monitor.py:7:    "sing-box": "sing-box.service",
-/opt/oci-zero-cost-lab/panel/system_monitor.py:14:    "sing-box": "sing-box.service",
-/opt/oci-zero-cost-lab/panel/templates.py:248:<div class="nav" data-p="singbox">📦 <span>sing-box</span></div>
-/opt/oci-zero-cost-lab/panel/nodes.py:92:            "active": service_active("sing-box"),
-/opt/oci-zero-cost-lab/panel/certificates.py:8:CERT_DIR = Path("/etc/sing-box/certs")
-/opt/oci-zero-cost-lab/panel/certificates.py:154:    # sing-box normally runs as root; keep directory accessible.
-/opt/oci-zero-cost-lab/panel/certificates.py:158:        "sing-box",
-/opt/oci-zero-cost-lab/panel/certificates.py:167:            "error": "证书已复制，但 sing-box 配置检查失败",
-/opt/oci-zero-cost-lab/panel/certificates.py:172:        ["systemctl", "restart", "sing-box"],
-/opt/oci-zero-cost-lab/panel/logs.py:2:ALLOWED={"oci-linux-lab","sing-box","caddy","ollama"}
-/opt/oci-zero-cost-lab/panel/static/modules/logs.js:14:    <option>sing-box</option>
-/opt/oci-zero-cost-lab/panel/static/modules/nodes.js:21:   数据直接读取 /etc/sing-box/config.json，不重新生成密钥。
-/opt/oci-zero-cost-lab/panel/static/modules/nodes.js:28:    '<div class="card">没有发现节点。请检查 sing-box 配置。</div>'
-/opt/oci-zero-cost-lab/panel/static/modules/nodes.js:164: ${n.active?'sing-box active':'sing-box inactive'}
-/opt/oci-zero-cost-lab/panel/static/modules/nodes.js:205:  '？\\n\\n系统会备份配置、检查配置并重启 sing-box。'
-/opt/oci-zero-cost-lab/panel/static/modules/actions.js:7:        message = "确认更新 sing-box？";
-/opt/oci-zero-cost-lab/panel/static/modules/ai.js:12:   可以直接询问 Linux、systemd、网络、sing-box 等问题。
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:37: *   "sing-box": {
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:60:        key: "sing-box",
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:61:        label: "sing-box",
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:62:        unit: "sing-box.service"
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:89: * ["sing-box", "Caddy"]
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:133: *   "sing-box": {
-/opt/oci-zero-cost-lab/panel/static/modules/singbox-network.js:7: * Sing-box 页面进入时由 singbox.js 显式调用。
-/opt/oci-zero-cost-lab/panel/static/modules/singbox-network.js:56:              本模块只移动/展示状态，不修改当前 BBR、TUIC 或 sing-box 配置。
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:15:    * sing-box version 原始输出包含完整构建信息。
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:21:   let shortVersion = "sing-box";
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:27:       if(value.startsWith("sing-box version")){
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:66:   <h2>sing-box</h2>
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:141:   <button onclick="restartSB()">重启 sing-box</button>
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:156: if(!confirm('确定重启 sing-box？'))return;
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:248:  '确定申请/续期 sing-box TLS 证书？\\n\\n'+
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:302: *   -> sing-box version / apt updates / update errors
-/opt/oci-zero-cost-lab/panel/static/modules/subscription.js:122:     订阅始终读取当前 sing-box 配置。
-/opt/oci-zero-cost-lab/panel/static/modules/subscription.js:132:     以下 URI 直接从当前 sing-box 节点配置生成。
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:13:        title: "sing-box",
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:28:    singbox: "sing-box",
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:446:            "📦 sing-box"
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:878:            "sing-box",
-/opt/oci-zero-cost-lab/panel/network_opt.py:8:SINGBOX = Path("/etc/sing-box/config.json")
-/opt/oci-zero-cost-lab/panel/ai.py:19:默认只提供只读诊断和学习建议。涉及修改 SSH、UFW、防火墙、sing-box、系统服务、软件包或删除数据时，
-/opt/oci-zero-cost-lab/panel/oci_free.py:13:SINGBOX = Path("/etc/sing-box/config.json")
-/opt/oci-zero-cost-lab/panel/oci_free.py:67:        cmd = ["curl", "-fsS", "--max-time", "4"]
-/opt/oci-zero-cost-lab/panel/oci_free.py:90:        cmd = ["curl", "-fsS", "--max-time", "4"]
-/opt/oci-zero-cost-lab/panel/system.py:11:    return {x:service_active(x) for x in ("sing-box","caddy","oci-linux-lab","ollama","oci-free-guard.timer")}
-/opt/oci-zero-cost-lab/panel/raw_subscription.py:7:SINGBOX = Path("/etc/sing-box/config.json")
-/opt/oci-zero-cost-lab/panel/system_updates.py:37:    "singbox": "SagerNet/sing-box",
-/opt/oci-zero-cost-lab/panel/system_updates.py:61:    url = f"https://api.github.com/repos/{repo}/releases/latest"
-/opt/oci-zero-cost-lab/panel/system_updates.py:153:        shutil.which("sing-box")
-/opt/oci-zero-cost-lab/panel/system_updates.py:154:        or "/usr/bin/sing-box"
-/opt/oci-zero-cost-lab/panel/system_updates.py:161:            "error": "sing-box 未安装或不存在",
-/opt/oci-zero-cost-lab/panel/system_updates.py:170:        r"(?:sing-box\s+)?version\s+v?([0-9][0-9A-Za-z.\-_]*)",
-/opt/oci-zero-cost-lab/panel/system_updates.py:191:                or f"sing-box version check failed: exit={rc}"
-/opt/oci-zero-cost-lab/panel/system_updates.py:483:            "sing-box",
-/opt/oci-zero-cost-lab/panel/system_updates.py:620:                "curl -fsSL https://getcaddy.com "
-/opt/oci-zero-cost-lab/panel/system_updates.py:650:curl -fsSL https://ollama.com/install.sh | sh
-/opt/oci-zero-cost-lab/panel/system_updates.py:658:api=$(curl -fsS --max-time 8     http://127.0.0.1:11434/api/version 2>&1)
+Syntax:
 
-===== 05. SYSTEM_UPDATES.PY =====
-     1  from __future__ import annotations
-     2
-     3  import json
-     4  import os
-     5  import re
-     6  import shutil
-     7  import subprocess
-     8  import time
-     9  import urllib.request
-    10
-    11
-    12  # ============================================================================
-    13  # OCI Linux Lab
-    14  # 独立软件更新模块
-    15  #
-    16  # 每个组件完全独立检查：
-    17  #
-    18  #   singbox
-    19  #   caddy
-    20  #   ollama
-    21  #   apt
-    22  #
-    23  # 默认：
-    24  #   24 小时缓存
-    25  #   只检查
-    26  #   不自动更新
-    27  #
-    28  # 手动更新必须由 server.py 经过显式确认后调用 update_component()
-    29  # ============================================================================
-    30
-    31  CACHE_SECONDS = 86400
-    32
-    33  _CACHE = {}
-    34  _CACHE_TIME = {}
-    35
-    36  GITHUB_REPOS = {
-    37      "singbox": "SagerNet/sing-box",
-    38      "caddy": "caddyserver/caddy",
-    39      "ollama": "ollama/ollama",
-    40  }
-    41
-    42
-    43  def _run(cmd, timeout=30):
-    44      try:
-    45          p = subprocess.run(
-    46              cmd,
-    47              text=True,
-    48              stdout=subprocess.PIPE,
-    49              stderr=subprocess.STDOUT,
-    50              timeout=timeout,
-    51              check=False,
-    52          )
-    53
-    54          return p.returncode, (p.stdout or "").strip()
-    55
-    56      except Exception as e:
-    57          return 999, str(e)
-    58
+Key functions:
+10:API_URL="https://api.github.com/repos/${REPO}/releases/latest"
+42:for cmd in curl python3 sha256sum tar install systemctl; do
+204:    asset.get("browser_download_url") or ""
+207:digest = str(
+208:    asset.get("digest") or ""
+213:        f"Asset 缺少 browser_download_url: {asset_name}"
+218:    digest
+221:        f"Asset 缺少有效 SHA256 digest: "
+222:        f"{asset_name}; digest={digest!r}"
+230:        digest.split(":", 1)[1].lower(),
+248:# 08. validate official GitHub URL
+286:    sha256sum "$ARCHIVE" \
+334:#   caddy list-modules --skip-standard
+348:if ! "$TARGET_BIN" list-modules \
+349:    --skip-standard \
+414:# 14. validate current Caddyfile BEFORE install
+419:"$DOWNLOADED_BIN" validate \
+431:ROLLBACK_BIN="$BACKUP_ROOT/caddy-${STAMP}.before"
+435:    "$ROLLBACK_BIN"
+437:chmod 0755 "$ROLLBACK_BIN"
+439:info "旧 binary 已备份：$ROLLBACK_BIN"
+462:# 17. post-install validate
+465:"$TARGET_BIN" validate \
+477:systemctl restart "$CADDY_SERVICE"
+489:    echo "[ROLLBACK] Caddy 重启失败"
+493:        "$ROLLBACK_BIN" \
+498:    systemctl restart "$CADDY_SERVICE" || true
+509:# 20. final validate
+512:"$TARGET_BIN" validate \
+531:echo "Backup  : ${ROLLBACK_BIN}"
+
+===== 04. SYSTEM-UPDATE.JS =====
+
+--- file ---
+     1  import { api } from "../core/api.js";
+     2  import { esc, showError } from "../core/ui.js";
+     3
+     4  let updateTimer = null;
+     5
+     6  let checking = {};
+     7  let updating = {};
+     8
+     9  const COMPONENTS = [
+    10      {
+    11          key: "singbox",
+    12          icon: "📦",
+    13          title: "sing-box",
+    14      },
+    15      {
+    16          key: "caddy",
+    17          icon: "🌐",
+    18          title: "Caddy",
+    19      },
+    20      {
+    21          key: "ollama",
+    22          icon: "🤖",
+    23          title: "Ollama",
+    24      },
+    25  ];
+    26
+    27  const COMPONENT_NAMES = {
+    28      singbox: "sing-box",
+    29      caddy: "Caddy",
+    30      ollama: "Ollama",
+    31      apt: "Ubuntu / APT",
+    32  };
+    33
+    34
+    35  /* =========================================================
+    36   * 状态显示
+    37   * ========================================================= */
+    38
+    39  function statusText(item) {
+    40
+    41      if (!item) {
+    42          return "";
+    43      }
+    44
+    45      if (item.status === "update_available") {
+    46          return "有新版本";
+    47      }
+    48
+    49      if (item.status === "up_to_date") {
+    50          return "已是最新";
+    51      }
+    52
+    53      if (item.status === "check_failed") {
+    54          return "检查失败";
+    55      }
+    56
+    57      return "";
+    58  }
     59
-    60  def _github_latest(repo):
-    61      url = f"https://api.github.com/repos/{repo}/releases/latest"
+    60
+    61  function statusClass(item) {
     62
-    63      req = urllib.request.Request(
-    64          url,
-    65          headers={
-    66              "Accept": "application/vnd.github+json",
-    67              "User-Agent": "OCI-Linux-Lab-System-Update-Checker",
-    68          },
-    69      )
+    63      if (!item) {
+    64          return "";
+    65      }
+    66
+    67      if (item.status === "update_available") {
+    68          return "warn";
+    69      }
     70
-    71      try:
-    72          with urllib.request.urlopen(req, timeout=12) as r:
-    73              data = json.loads(r.read().decode("utf-8"))
+    71      if (item.status === "check_failed") {
+    72          return "bad";
+    73      }
     74
-    75          tag = str(
-    76              data.get("tag_name") or ""
-    77          ).strip()
+    75      if (item.status === "up_to_date") {
+    76          return "ok";
+    77      }
     78
-    79          if tag.startswith("v"):
-    80              tag = tag[1:]
+    79      return "";
+    80  }
     81
-    82          return {
-    83              "version": tag,
-    84              "url": data.get("html_url") or "",
-    85              "published_at": data.get("published_at") or "",
-    86              "error": "",
-    87          }
-    88
-    89      except Exception as e:
-    90          return {
-    91              "version": "",
-    92              "url": f"https://github.com/{repo}/releases/latest",
-    93              "published_at": "",
-    94              "error": str(e),
-    95          }
-    96
-    97
-    98  def _version_parts(v):
-    99      s = str(v or "").strip().lower()
-   100
-   101      if s.startswith("v"):
-   102          s = s[1:]
-   103
-   104      parts = re.findall(
-   105          r"\d+|[a-z]+",
-   106          s
-   107      )
-   108
-   109      out = []
+    82
+    83  /* =========================================================
+    84   * 软件模块卡片
+    85   * ========================================================= */
+    86
+    87  function softwareCard(
+    88      item,
+    89      icon,
+    90      title,
+    91      key
+    92  ) {
+    93
+    94      item = item || {};
+    95
+    96      const current =
+    97          item.current || "-";
+    98
+    99      const latest =
+   100          item.latest || "-";
+   101
+   102      const status =
+   103          statusText(item);
+   104
+   105      const statusCls =
+   106          statusClass(item);
+   107
+   108      const isChecking =
+   109          !!checking[key];
    110
-   111      for p in parts:
-   112          if p.isdigit():
-   113              out.append((0, int(p)))
-   114          else:
-   115              out.append((1, p))
-   116
-   117      return out
+   111      const isUpdating =
+   112          !!updating[key];
+   113
+   114      const buttonText =
+   115          isChecking
+   116              ? "检查中……"
+   117              : "检查更新";
    118
-   119
-   120  def _cmp(a, b):
-   121      pa = _version_parts(a)
-   122      pb = _version_parts(b)
+   119      const updateText =
+   120          isUpdating
+   121              ? "更新中……"
+   122              : "更新";
    123
-   124      n = max(len(pa), len(pb))
-   125
-   126      for i in range(n):
-   127
-   128          xa = pa[i] if i < len(pa) else (0, 0)
-   129          xb = pb[i] if i < len(pb) else (0, 0)
-   130
-   131          if xa == xb:
-   132              continue
+   124      return `
+   125          <div
+   126              class="card"
+   127              id="oci-update-card-${esc(key)}"
+   128          >
+   129
+   130              <h3>
+   131                  ${icon} ${esc(title)}
+   132              </h3>
    133
-   134          if xa[0] != xb[0]:
-   135              return -1 if xa[0] < xb[0] else 1
-   136
-   137          return -1 if xa[1] < xb[1] else 1
-   138
-   139      return 0
+   134              <div class="grid">
+   135
+   136                  <div class="stat">
+   137                      <div class="stat-name">
+   138                          当前版本
+   139                      </div>
    140
-   141
-   142  def _newer(current, latest):
-   143      return bool(
-   144          current
-   145          and latest
-   146          and _cmp(latest, current) > 0
-   147      )
-   148
-   149
-   150  def _singbox_version():
-   151
-   152      path = (
-   153          shutil.which("sing-box")
-   154          or "/usr/bin/sing-box"
-   155      )
-   156
-   157      if not os.path.isfile(path):
-   158          return {
-   159              "current": "",
-   160              "path": path,
-   161              "error": "sing-box 未安装或不存在",
-   162          }
-   163
-   164      rc, out = _run(
-   165          [path, "version"],
-   166          timeout=8
-   167      )
-   168
-   169      m = re.search(
-   170          r"(?:sing-box\s+)?version\s+v?([0-9][0-9A-Za-z.\-_]*)",
-   171          out,
-   172          re.I
-   173      )
-   174
-   175      if not m:
-   176          m = re.search(
-   177              r"\bv?([0-9]+\.[0-9]+(?:\.[0-9]+)?)\b",
-   178              out
-   179          )
-   180
-   181      current = m.group(1) if m else ""
-   182
-   183      return {
-   184          "current": current,
-   185          "path": path,
-   186          "error": (
-   187              ""
-   188              if rc == 0 and current
-   189              else (
-   190                  out
-   191                  or f"sing-box version check failed: exit={rc}"
-   192              )
-   193          ),
-   194      }
-   195
-   196
-   197  def _caddy_version():
-   198
-   199      path = (
-   200          shutil.which("caddy")
-   201          or "/usr/bin/caddy"
-   202      )
-   203
-   204      if not os.path.isfile(path):
-   205          return {
-   206              "current": "",
-   207              "path": path,
-   208              "error": "Caddy 未安装或不存在",
-   209          }
-   210
-   211      rc, out = _run(
-   212          [path, "version"],
-   213          timeout=8
-   214      )
+   141                      <div class="stat-value">
+   142                          ${esc(current)}
+   143                      </div>
+   144                  </div>
+   145
+   146                  <div class="stat">
+   147                      <div class="stat-name">
+   148                          最新正式版
+   149                      </div>
+   150
+   151                      <div class="stat-value">
+   152                          ${esc(latest)}
+   153                      </div>
+   154                  </div>
+   155
+   156              </div>
+   157
+   158              ${
+   159                  status
+   160                      ? `
+   161                      <div style="margin-top:12px">
+   162                          <span class="${statusCls}">
+   163                              ${esc(status)}
+   164                          </span>
+   165                      </div>
+   166                      `
+   167                      : ""
+   168              }
+   169
+   170              ${
+   171                  item.error
+   172                      ? `
+   173                      <div
+   174                          class="bad"
+   175                          style="
+   176                              margin-top:10px;
+   177                              white-space:pre-wrap
+   178                          "
+   179                      >
+   180                          ${esc(item.error)}
+   181                      </div>
+   182                      `
+   183                      : ""
+   184              }
+   185
+   186              <div style="
+   187                  margin-top:14px;
+   188                  display:flex;
+   189                  gap:8px;
+   190                  flex-wrap:wrap;
+   191              ">
+   192
+   193                  <button
+   194                      type="button"
+   195                      onclick="checkSystemComponent('${esc(key)}')"
+   196                      ${isChecking || isUpdating ? "disabled" : ""}
+   197                  >
+   198                      ${buttonText}
+   199                  </button>
+   200
+   201                  <button
+   202                      type="button"
+   203                      class="warn"
+   204                      onclick="updateSystemComponent('${esc(key)}')"
+   205                      ${isChecking || isUpdating ? "disabled" : ""}
+   206                  >
+   207                      ${updateText}
+   208                  </button>
+   209
+   210              </div>
+   211
+   212          </div>
+   213      `;
+   214  }
    215
-   216      m = re.search(
-   217          r"v?([0-9]+\.[0-9]+\.[0-9]+[^\s]*)",
-   218          out
-   219      )
+   216
+   217  /* =========================================================
+   218   * APT 卡片
+   219   * ========================================================= */
    220
-   221      current = m.group(1) if m else ""
+   221  function aptCard(apt) {
    222
-   223      return {
-   224          "current": current,
-   225          "path": path,
-   226          "error": (
-   227              ""
-   228              if rc == 0 and current
-   229              else (
-   230                  out
-   231                  or f"Caddy version check failed: exit={rc}"
-   232              )
-   233          ),
-   234      }
+   223      apt = apt || {};
+   224
+   225      const packages =
+   226          Array.isArray(apt.packages)
+   227              ? apt.packages
+   228              : [];
+   229
+   230      const isChecking =
+   231          !!checking.apt;
+   232
+   233      const isUpdating =
+   234          !!updating.apt;
    235
-   236
-   237  def _ollama_version():
-   238
-   239      path = (
-   240          shutil.which("ollama")
-   241          or "/usr/local/bin/ollama"
-   242      )
-   243
-   244      # Ollama 已经作为 systemd 服务运行时，
-   245      # 优先查询本机 API。
-   246      #
-   247      # 这样不会受到 Panel systemd 环境中 HOME
-   248      # 未定义导致的 Ollama CLI panic 影响。
-   249
-   250      try:
-   251          req = urllib.request.Request(
-   252              "http://127.0.0.1:11434/api/version",
-   253              headers={
-   254                  "User-Agent": "OCI-Linux-Lab-System-Update-Checker",
-   255              },
-   256          )
-   257
-   258          with urllib.request.urlopen(
-   259              req,
-   260              timeout=5
-   261          ) as r:
-   262
-   263              data = json.loads(
-   264                  r.read().decode("utf-8")
-   265              )
-   266
-   267          current = str(
-   268              data.get("version") or ""
-   269          ).strip()
-   270
-   271          if current:
-   272              return {
-   273                  "current": current,
-   274                  "path": path,
-   275                  "error": "",
-   276              }
-   277
-   278      except Exception as e:
-   279
-   280          api_error = str(e)
-   281
-   282      else:
-   283          api_error = "Ollama API 未返回版本号"
-   284
-   285      # API 不可用时再回退到 CLI。
-   286      # CLI 必须提供有效 HOME。
-   287      #
-   288      # 当前服务器的 Ollama systemd 用户为：
-   289      #   ollama
-   290      # HOME：
-   291      #   /usr/share/ollama
-   292
-   293      rc, out = _run(
-   294          [
-   295              "env",
-   296              "HOME=/usr/share/ollama",
-   297              "USER=ollama",
-   298              "LOGNAME=ollama",
-   299              path,
-   300              "--version",
-   301          ],
-   302          timeout=8
-   303      )
-   304
-   305      m = re.search(
-   306          r"(?:ollama(?:\s+version)?\s*(?:is)?\s*)v?([0-9]+\.[0-9]+\.[0-9]+[^\s]*)",
-   307          out,
-   308          re.I
-   309      )
-   310
-   311      if not m:
-   312          m = re.search(
-   313              r"\bv?([0-9]+\.[0-9]+\.[0-9]+[^\s]*)\b",
-   314              out
-   315          )
-   316
-   317      current = m.group(1) if m else ""
-   318
-   319      return {
-   320          "current": current,
-   321          "path": path,
-   322          "error": (
-   323              ""
-   324              if rc == 0 and current
-   325              else (
-   326                  out
-   327                  or api_error
-   328                  or f"Ollama version check failed: exit={rc}"
-   329              )
-   330          ),
-   331      }
-   332
+   236      return `
+   237          <div
+   238              class="card"
+   239              id="oci-update-card-apt"
+   240          >
+   241
+   242              <h3>
+   243                  🖥 Ubuntu / APT
+   244              </h3>
+   245
+   246              <div class="grid">
+   247
+   248                  <div class="stat">
+   249                      <div class="stat-name">
+   250                          系统
+   251                      </div>
+   252
+   253                      <div class="stat-value">
+   254                          ${esc(
+   255                              apt.ubuntu || "-"
+   256                          )}
+   257                      </div>
+   258                  </div>
+   259
+   260                  <div class="stat">
+   261                      <div class="stat-name">
+   262                          可更新软件包
+   263                      </div>
+   264
+   265                      <div class="stat-value">
+   266                          ${esc(
+   267                              apt.available_packages ?? 0
+   268                          )}
+   269                      </div>
+   270                  </div>
+   271
+   272                  <div class="stat">
+   273                      <div class="stat-name">
+   274                          安全更新
+   275                      </div>
+   276
+   277                      <div class="stat-value">
+   278                          ${esc(
+   279                              apt.security_packages ?? 0
+   280                          )}
+   281                      </div>
+   282                  </div>
+   283
+   284              </div>
+   285
+   286              ${
+   287                  apt.error
+   288                      ? `
+   289                      <div
+   290                          class="bad"
+   291                          style="
+   292                              margin-top:10px;
+   293                              white-space:pre-wrap
+   294                          "
+   295                      >
+   296                          ${esc(apt.error)}
+   297                      </div>
+   298                      `
+   299                      : ""
+   300              }
+   301
+   302              <div style="
+   303                  margin-top:14px;
+   304                  display:flex;
+   305                  gap:8px;
+   306                  flex-wrap:wrap;
+   307              ">
+   308
+   309                  <button
+   310                      type="button"
+   311                      onclick="checkSystemComponent('apt')"
+   312                      ${isChecking || isUpdating ? "disabled" : ""}
+   313                  >
+   314                      ${
+   315                          isChecking
+   316                              ? "检查中……"
+   317                              : "检查更新"
+   318                      }
+   319                  </button>
+   320
+   321                  <button
+   322                      type="button"
+   323                      class="warn"
+   324                      onclick="updateSystemComponent('apt')"
+   325                      ${isChecking || isUpdating ? "disabled" : ""}
+   326                  >
+   327                      ${
+   328                          isUpdating
+   329                              ? "更新中……"
+   330                              : "更新"
+   331                      }
+   332                  </button>
    333
-   334  def _ubuntu_apt():
-   335
-   336      rc, osr = _run(
-   337          [
-   338              "bash",
-   339              "-lc",
-   340              ". /etc/os-release 2>/dev/null; "
-   341              "echo ${PRETTY_NAME:-unknown}"
-   342          ],
-   343          timeout=5
-   344      )
-   345
-   346      ubuntu = osr.strip() if rc == 0 else "unknown"
-   347
-   348      update_rc, update_out = _run(
-   349          [
-   350              "apt-get",
-   351              "update",
-   352              "-qq"
-   353          ],
-   354          timeout=120
-   355      )
-   356
-   357      rc2, sim = _run(
-   358          [
-   359              "apt-get",
-   360              "-s",
-   361              "-o",
-   362              "APT::Get::Show-Upgraded=true",
-   363              "upgrade"
-   364          ],
-   365          timeout=60
-   366      )
-   367
-   368      packages = []
-   369      security = 0
-   370
-   371      if rc2 == 0:
-   372
-   373          for line in sim.splitlines():
-   374
-   375              line = line.strip()
+   334                  <button
+   335                      type="button"
+   336                      onclick="showAptPackages()"
+   337                      ${isChecking || isUpdating ? "disabled" : ""}
+   338                  >
+   339                      查看更新
+   340                  </button>
+   341
+   342              </div>
+   343
+   344              <div
+   345                  id="oci-apt-packages"
+   346                  style="margin-top:12px"
+   347              ></div>
+   348
+   349          </div>
+   350      `;
+   351  }
+   352
+   353
+   354  /* =========================================================
+   355   * 单模块 API
+   356   *
+   357   * 永远带 component。
+   358   * 不再存在 /api/system/updates 的总检查调用。
+   359   * ========================================================= */
+   360
+   361  async function loadComponent(
+   362      component,
+   363      force = false
+   364  ) {
+   365
+   366      let url =
+   367          "/api/system/updates?component=" +
+   368          encodeURIComponent(component);
+   369
+   370      if (force) {
+   371          url += "&refresh=1";
+   372      }
+   373
+   374      return await api(url);
+   375  }
    376
-   377              if not line.startswith("Inst "):
-   378                  continue
-   379
-   380              parts = line.split()
+   377
+   378  /* =========================================================
+   379   * 替换单个模块卡片
+   380   * ========================================================= */
    381
-   382              if len(parts) < 2:
-   383                  continue
-   384
-   385              packages.append(parts[1])
+   382  function replaceComponent(
+   383      component,
+   384      data
+   385  ) {
    386
-   387              if (
-   388                  "security.ubuntu.com" in line
-   389                  or "jammy-security" in line
-   390                  or "-security" in line
-   391              ):
-   392                  security += 1
-   393
-   394      return {
-   395          "ubuntu": ubuntu,
-   396          "available_packages": len(packages),
-   397          "security_packages": security,
-   398          "packages": packages[:200],
-   399          "update_index_ok": update_rc == 0,
-   400          "simulation_ok": rc2 == 0,
-   401          "error": (
-   402              ""
-   403              if update_rc == 0 and rc2 == 0
-   404              else (
-   405                  update_out
-   406                  or sim
-   407                  or f"apt exit={update_rc}/{rc2}"
-   408              )
-   409          ),
-   410      }
-   411
+   387      const oldCard =
+   388          document.querySelector(
+   389              "#oci-update-card-" + component
+   390          );
+   391
+   392      if (!oldCard) {
+   393          return;
+   394      }
+   395
+   396      if (component === "apt") {
+   397
+   398          oldCard.outerHTML =
+   399              aptCard(data);
+   400
+   401          return;
+   402      }
+   403
+   404      const meta =
+   405          COMPONENTS.find(
+   406              x => x.key === component
+   407          );
+   408
+   409      if (!meta) {
+   410          return;
+   411      }
    412
-   413  def _component(name, current_info, latest_info):
-   414
-   415      current = current_info.get("current", "")
-   416      latest = latest_info.get("version", "")
-   417
-   418      err = (
-   419          current_info.get("error")
-   420          or latest_info.get("error")
-   421          or ""
-   422      )
-   423
-   424      newer = _newer(current, latest)
-   425
-   426      if newer:
-   427          status = "update_available"
-   428      elif current and latest:
-   429          status = "up_to_date"
-   430      elif err:
-   431          status = "check_failed"
-   432      else:
-   433          status = "unknown"
-   434
-   435      return {
-   436          "name": name,
-   437          "current": current,
-   438          "latest": latest,
-   439          "newer": newer,
-   440          "status": status,
-   441          "release_url": latest_info.get("url", ""),
-   442          "published_at": latest_info.get("published_at", ""),
-   443          "error": err,
-   444          "path": current_info.get("path", ""),
-   445      }
-   446
-   447
-   448  # ============================================================================
-   449  # 单模块检查
-   450  # ============================================================================
-   451
-   452  def check_component(component, force=False):
-   453
-   454      component = str(component or "").strip().lower()
-   455
-   456      if component not in (
-   457          "singbox",
-   458          "caddy",
-   459          "ollama",
-   460          "apt",
-   461      ):
-   462          raise ValueError(
-   463              f"未知更新模块: {component}"
-   464          )
-   465
-   466      now = time.time()
-   467
-   468      if (
-   469          not force
-   470          and component in _CACHE
-   471          and now - _CACHE_TIME.get(component, 0) < CACHE_SECONDS
-   472      ):
-   473          return _CACHE[component]
-   474
-   475      if component == "singbox":
-   476
-   477          current = _singbox_version()
-   478          latest = _github_latest(
-   479              GITHUB_REPOS["singbox"]
-   480          )
-   481
-   482          data = _component(
-   483              "sing-box",
-   484              current,
-   485              latest
-   486          )
-   487
-   488      elif component == "caddy":
-   489
-   490          current = _caddy_version()
-   491          latest = _github_latest(
-   492              GITHUB_REPOS["caddy"]
-   493          )
-   494
-   495          data = _component(
-   496              "Caddy",
-   497              current,
-   498              latest
-   499          )
-   500
-   501      elif component == "ollama":
-   502
-   503          current = _ollama_version()
-   504          latest = _github_latest(
-   505              GITHUB_REPOS["ollama"]
-   506          )
-   507
-   508          data = _component(
-   509              "Ollama",
-   510              current,
-   511              latest
-   512          )
-   513
-   514      else:
-   515
-   516          data = _ubuntu_apt()
-   517
-   518      checked_at = time.strftime(
-   519          "%Y-%m-%dT%H:%M:%SZ",
-   520          time.gmtime(now)
-   521      )
+   413      oldCard.outerHTML =
+   414          softwareCard(
+   415              data,
+   416              meta.icon,
+   417              meta.title,
+   418              component
+   419          );
+   420  }
+   421
+   422
+   423  /* =========================================================
+   424   * 页面初始化
+   425   *
+   426   * 这里不再调用：
+   427   *   /api/system/updates
+   428   *
+   429   * 而是四个模块分别读取自己的缓存。
+   430   * ========================================================= */
+   431
+   432  async function loadInitialComponents() {
+   433
+   434      const box =
+   435          document.querySelector(
+   436              "#oci-system-update"
+   437          );
+   438
+   439      if (!box) {
+   440          return;
+   441      }
+   442
+   443      box.innerHTML = `
+   444
+   445          ${componentLoadingHtml(
+   446              "📦 sing-box"
+   447          )}
+   448
+   449          ${componentLoadingHtml(
+   450              "🖥 Ubuntu / APT"
+   451          )}
+   452
+   453          ${componentLoadingHtml(
+   454              "🌐 Caddy"
+   455          )}
+   456
+   457          ${componentLoadingHtml(
+   458              "🤖 Ollama"
+   459          )}
+   460
+   461      `;
+   462
+   463      /*
+   464       * 四个模块独立读取缓存。
+   465       *
+   466       * 这里使用 Promise.all，
+   467       * 但每个请求仍然是独立的 component。
+   468       *
+   469       * 不会调用总检查接口。
+   470       */
+   471
+   472      const results =
+   473          await Promise.allSettled([
+   474              loadComponent("singbox", false),
+   475              loadComponent("apt", false),
+   476              loadComponent("caddy", false),
+   477              loadComponent("ollama", false),
+   478          ]);
+   479
+   480      if (!document.querySelector("#oci-system-update")) {
+   481          return;
+   482      }
+   483
+   484      const data = {
+   485          singbox: null,
+   486          apt: null,
+   487          caddy: null,
+   488          ollama: null,
+   489      };
+   490
+   491      if (
+   492          results[0].status === "fulfilled"
+   493      ) {
+   494          data.singbox =
+   495              results[0].value;
+   496      }
+   497
+   498      if (
+   499          results[1].status === "fulfilled"
+   500      ) {
+   501          data.apt =
+   502              results[1].value;
+   503      }
+   504
+   505      if (
+   506          results[2].status === "fulfilled"
+   507      ) {
+   508          data.caddy =
+   509              results[2].value;
+   510      }
+   511
+   512      if (
+   513          results[3].status === "fulfilled"
+   514      ) {
+   515          data.ollama =
+   516              results[3].value;
+   517      }
+   518
+   519      renderData(data);
+   520  }
+   521
    522
-   523      if component != "apt":
-   524          data["checked_at"] = checked_at
-   525
-   526      else:
-   527          data["checked_at"] = checked_at
-   528
-   529      _CACHE[component] = data
-   530      _CACHE_TIME[component] = now
-   531
-   532      return data
-   533
-   534
-   535  # ============================================================================
-   536  # 保留总览接口
-   537  #
-   538  # 仅用于：
-   539  #   首次进入页面
-   540  #   每日自动检查
-   541  #
-   542  # 手动点击模块按钮不会调用这里。
-   543  # ============================================================================
+   523  /* =========================================================
+   524   * 加载状态
+   525   * ========================================================= */
+   526
+   527  function componentLoadingHtml(
+   528      title
+   529  ) {
+   530
+   531      return `
+   532          <div class="card">
+   533              <h3>
+   534                  ${esc(title)}
+   535              </h3>
+   536
+   537              <div class="loading">
+   538                  正在读取状态……
+   539              </div>
+   540          </div>
+   541      `;
+   542  }
+   543
    544
-   545  def collect(force=False):
-   546
-   547      return {
-   548          "ok": True,
-   549          "checked_at": time.strftime(
-   550              "%Y-%m-%dT%H:%M:%SZ",
-   551              time.gmtime()
-   552          ),
-   553          "cache_seconds": CACHE_SECONDS,
-   554          "singbox": check_component(
-   555              "singbox",
-   556              force=force
-   557          ),
-   558          "apt": check_component(
-   559              "apt",
-   560              force=force
-   561          ),
-   562          "caddy": check_component(
-   563              "caddy",
-   564              force=force
-   565          ),
-   566          "ollama": check_component(
-   567              "ollama",
-   568              force=force
-   569          ),
-   570      }
+   545  /* =========================================================
+   546   * 单模块检查
+   547   * ========================================================= */
+   548
+   549  async function checkSystemComponent(
+   550      component
+   551  ) {
+   552
+   553      if (checking[component]) {
+   554          return;
+   555      }
+   556
+   557      if (updating[component]) {
+   558          return;
+   559      }
+   560
+   561      const oldCard =
+   562          document.querySelector(
+   563              "#oci-update-card-" + component
+   564          );
+   565
+   566      if (!oldCard) {
+   567          return;
+   568      }
+   569
+   570      checking[component] = true;
    571
-   572
-   573  # ============================================================================
-   574  # 手动更新
-   575  #
-   576  # 注意：
-   577  #   本函数不会被 GET 调用。
-   578  #   server.py 必须先验证 CONFIRM，
-   579  #   然后才允许执行。
-   580  # ============================================================================
-   581
-   582  def update_component(component):
-   583
-   584      component = str(component or "").strip().lower()
-   585
-   586      if component == "singbox":
-   587
-   588          rc, out = _run(
-   589              [
-   590                  "systemd-run",
-   591                  "--wait",
-   592                  "--pipe",
-   593                  "--collect",
-   594                  "/opt/oci-zero-cost-lab/scripts/singbox-update",
-   595              ],
-   596              timeout=900
-   597          )
-   598
-   599      elif component == "apt":
-   600
-   601          rc, out = _run(
-   602              [
-   603                  "systemd-run",
-   604                  "--wait",
-   605                  "--pipe",
-   606                  "--collect",
-   607                  "/opt/oci-zero-cost-lab/scripts/system-update",
-   608              ],
-   609              timeout=900
-   610          )
+   572      const button =
+   573          oldCard.querySelector(
+   574              "button"
+   575          );
+   576
+   577      if (button) {
+   578          button.disabled = true;
+   579          button.textContent =
+   580              "检查中……";
+   581      }
+   582
+   583      try {
+   584
+   585          /*
+   586           * force=true：
+   587           * 只强制检查当前模块。
+   588           */
+   589
+   590          const data =
+   591              await loadComponent(
+   592                  component,
+   593                  true
+   594              );
+   595
+   596          if (!data) {
+   597              return;
+   598          }
+   599
+   600          replaceComponent(
+   601              component,
+   602              data
+   603          );
+   604
+   605      } catch (error) {
+   606
+   607          console.error(
+   608              "system update check:",
+   609              error
+   610          );
    611
-   612      elif component == "caddy":
-   613
-   614          # 使用 Caddy 官方推荐安装脚本。
-   615          # 不修改 Caddyfile。
-   616          rc, out = _run(
-   617              [
-   618                  "bash",
-   619                  "-lc",
-   620                  "curl -fsSL https://getcaddy.com "
-   621                  "| bash -s personal && "
-   622                  "systemctl restart caddy"
-   623              ],
-   624              timeout=900
-   625          )
-   626
-   627      elif component == "ollama":
-   628
-   629          # 使用 Ollama 官方安装脚本。
-   630          # 不删除模型目录。
-   631          #
-   632          # 官方安装脚本在 usermod / group 处理阶段可能返回
-   633          # 非 0，但 Ollama 本体可能已经完成更新。
-   634          #
-   635          # 因此：
-   636          #   1. 执行官方安装脚本
-   637          #   2. 主动重启 Ollama
-   638          #   3. 检查 Ollama API
-   639          #   4. 检查 Ollama CLI
-   640          #
-   641          # 最终返回值由实际服务状态决定。
-   642
-   643          rc, out = _run(
-   644              [
-   645                  "bash",
-   646                  "-lc",
-   647                  """
-   648  set +e
-   649
-   650  curl -fsSL https://ollama.com/install.sh | sh
-   651  install_rc=$?
-   652
-   653  systemctl restart ollama
-   654  restart_rc=$?
+   612          showError(
+   613              error.message ||
+   614              String(error)
+   615          );
+   616
+   617      } finally {
+   618
+   619          checking[component] = false;
+   620      }
+   621  }
+   622
+   623
+   624  /* =========================================================
+   625   * 单模块更新
+   626   * ========================================================= */
+   627
+   628  async function updateSystemComponent(
+   629      component
+   630  ) {
+   631
+   632      if (checking[component]) {
+   633          return;
+   634      }
+   635
+   636      if (updating[component]) {
+   637          return;
+   638      }
+   639
+   640      const name =
+   641          COMPONENT_NAMES[component] ||
+   642          component;
+   643
+   644      if (
+   645          !window.confirm(
+   646              `确认更新 ${name}？\n\n` +
+   647              `更新操作只针对当前模块，` +
+   648              `不会更新其他模块。`
+   649          )
+   650      ) {
+   651          return;
+   652      }
+   653
+   654      updating[component] = true;
    655
-   656  sleep 2
-   657
-   658  api=$(curl -fsS --max-time 8     http://127.0.0.1:11434/api/version 2>&1)
-   659  api_rc=$?
+   656      const card =
+   657          document.querySelector(
+   658              "#oci-update-card-" + component
+   659          );
    660
-   661  cli=$(HOME=/usr/share/ollama USER=ollama LOGNAME=ollama     /usr/local/bin/ollama --version 2>&1)
-   662  cli_rc=$?
-   663
-   664  printf '\n[OCI-OLLAMA-UPDATE] install_rc=%s restart_rc=%s api_rc=%s cli_rc=%s\n'     "$install_rc" "$restart_rc" "$api_rc" "$cli_rc"
-   665
-   666  printf '[OCI-OLLAMA-UPDATE] api=%s\n' "$api"
-   667  printf '[OCI-OLLAMA-UPDATE] cli=%s\n' "$cli"
-   668
-   669  if [ "$restart_rc" -eq 0 ] &&
-   670     [ "$api_rc" -eq 0 ] &&
-   671     echo "$api" | grep -q '"version"' &&
-   672     [ "$cli_rc" -eq 0 ]
-   673  then
-   674      exit 0
-   675  fi
-   676
-   677  exit 1
-   678  """,
-   679              ],
-   680              timeout=900
-   681          )
-   682
-   683      else:
+   661      if (card) {
+   662
+   663          const buttons =
+   664              card.querySelectorAll(
+   665                  "button"
+   666              );
+   667
+   668          buttons.forEach(
+   669              button => {
+   670                  button.disabled = true;
+   671              }
+   672          );
+   673
+   674          const updateButton =
+   675              buttons.length >= 2
+   676                  ? buttons[1]
+   677                  : null;
+   678
+   679          if (updateButton) {
+   680              updateButton.textContent =
+   681                  "更新中……";
+   682          }
+   683      }
    684
-   685          return {
-   686              "ok": False,
-   687              "component": component,
-   688              "error": f"未知更新模块: {component}",
-   689          }
-   690
-   691      # 更新成功后清除对应缓存。
-   692      _CACHE.pop(component, None)
-   693      _CACHE_TIME.pop(component, None)
-   694
-   695      return {
-   696          "ok": rc == 0,
-   697          "component": component,
-   698          "output": out[-6000:],
-   699          "exit_code": rc,
-   700      }
+   685      try {
+   686
+   687          /*
+   688           * 新的独立更新接口。
+   689           *
+   690           * 不再使用旧的：
+   691           * /api/action
+   692           */
+   693
+   694          const result =
+   695              await api(
+   696                  "/api/system/update",
+   697                  {
+   698                      method: "POST",
+   699
+   700                      body: JSON.stringify({
+   701                          component,
+   702                          confirm: "CONFIRM",
+   703                      }),
+   704                  }
+   705              );
+   706
+   707          if (!result) {
+   708              return;
+   709          }
+   710
+   711          if (!result.ok) {
+   712
+   713              throw new Error(
+   714                  result.error ||
+   715                  result.output ||
+   716                  "更新失败"
+   717              );
+   718          }
+   719
+   720          /*
+   721           * 更新完成后：
+   722           *
+   723           * 只重新检查当前模块。
+   724           */
+   725
+   726          const data =
+   727              await loadComponent(
+   728                  component,
+   729                  true
+   730              );
+   731
+   732          if (data) {
+   733
+   734              replaceComponent(
+   735                  component,
+   736                  data
+   737              );
+   738          }
+   739
+   740          if (
+   741              result.output &&
+   742              result.output.includes(
+   743                  "REBOOT_REQUIRED=1"
+   744              )
+   745          ) {
+   746
+   747              alert(
+   748                  `${name} 更新完成。\n\n` +
+   749                  `系统提示需要重启服务器。`
+   750              );
+   751
+   752          } else {
+   753
+   754              alert(
+   755                  `${name} 更新完成。`
+   756              );
+   757          }
+   758
+   759      } catch (error) {
+   760
+   761          console.error(
+   762              "system update:",
+   763              error
+   764          );
+   765
+   766          showError(
+   767              error.message ||
+   768              String(error)
+   769          );
+   770
+   771      } finally {
+   772
+   773          updating[component] = false;
+   774      }
+   775  }
+   776
+   777
+   778  /* =========================================================
+   779   * APT 软件包详情
+   780   *
+   781   * 使用缓存数据。
+   782   * 不主动重新执行 apt 检查。
+   783   * ========================================================= */
+   784
+   785  async function showAptPackages() {
+   786
+   787      const target =
+   788          document.querySelector(
+   789              "#oci-apt-packages"
+   790          );
+   791
+   792      if (!target) {
+   793          return;
+   794      }
+   795
+   796      try {
+   797
+   798          const data =
+   799              await loadComponent(
+   800                  "apt",
+   801                  false
+   802              );
+   803
+   804          if (!data) {
+   805              return;
+   806          }
+   807
+   808          const packages =
+   809              Array.isArray(data.packages)
+   810                  ? data.packages
+   811                  : [];
+   812
+   813          if (!packages.length) {
+   814
+   815              target.innerHTML = `
+   816                  <div style="opacity:.65">
+   817                      当前没有检测到可更新软件包。
+   818                  </div>
+   819              `;
+   820
+   821              return;
+   822          }
+   823
+   824          target.innerHTML = `
+   825              <details open>
+   826
+   827                  <summary style="cursor:pointer">
+   828                      可更新软件包（${packages.length}）
+   829                  </summary>
+   830
+   831                  <pre style="
+   832                      margin-top:10px;
+   833                      white-space:pre-wrap;
+   834                      word-break:break-word;
+   835                      font-size:12px;
+   836                  ">${esc(
+   837                      packages.join("\n")
+   838                  )}</pre>
+   839
+   840              </details>
+   841          `;
+   842
+   843      } catch (error) {
+   844
+   845          showError(
+   846              error.message ||
+   847              String(error)
+   848          );
+   849      }
+   850  }
+   851
+   852
+   853  /* =========================================================
+   854   * 渲染全部卡片
+   855   *
+   856   * 注意：
+   857   * 这里只负责渲染。
+   858   *
+   859   * 不负责检查。
+   860   * ========================================================= */
+   861
+   862  function renderData(data) {
+   863
+   864      const box =
+   865          document.querySelector(
+   866              "#oci-system-update"
+   867          );
+   868
+   869      if (!box) {
+   870          return;
+   871      }
+   872
+   873      box.innerHTML = `
+   874
+   875          ${softwareCard(
+   876              data.singbox,
+   877              "📦",
+   878              "sing-box",
+   879              "singbox"
+   880          )}
+   881
+   882          ${aptCard(
+   883              data.apt
+   884          )}
+   885
+   886          ${softwareCard(
+   887              data.caddy,
+   888              "🌐",
+   889              "Caddy",
+   890              "caddy"
+   891          )}
+   892
+   893          ${softwareCard(
+   894              data.ollama,
+   895              "🤖",
+   896              "Ollama",
+   897              "ollama"
+   898          )}
+   899
+   900      `;
+   901  }
+   902
+   903
+   904  /* =========================================================
+   905   * 每 24 小时重新读取四个模块的缓存
+   906   *
+   907   * 后端负责 24h 缓存。
+   908   * 这里不会强制刷新。
+   909   * ========================================================= */
+   910
+   911  async function refreshAllFromCache() {
+   912
+   913      if (
+   914          !document.querySelector(
+   915              "#oci-system-update"
+   916          )
+   917      ) {
+   918          return;
+   919      }
+   920
+   921      await loadInitialComponents();
+   922  }
+   923
+   924
+   925  /* =========================================================
+   926   * 页面入口
+   927   * ========================================================= */
+   928
+   929  export function renderSystemUpdate() {
+   930
+   931      if (updateTimer) {
+   932
+   933          clearInterval(
+   934              updateTimer
+   935          );
+   936
+   937          updateTimer = null;
+   938      }
+   939
+   940      /*
+   941       * 首次进入：
+   942       *
+   943       * 四个模块分别读取自己的缓存。
+   944       */
+   945
+   946      loadInitialComponents().catch(
+   947          error => {
+   948
+   949              console.error(
+   950                  "system update initial load:",
+   951                  error
+   952              );
+   953
+   954              showError(
+   955                  error.message ||
+   956                  String(error)
+   957              );
+   958          }
+   959      );
+   960
+   961      /*
+   962       * 每 24 小时：
+   963       *
+   964       * 四个模块分别读取自己的缓存。
+   965       *
+   966       * 后端只有在对应模块缓存过期时，
+   967       * 才会重新检查该模块。
+   968       */
+   969
+   970      updateTimer =
+   971          setInterval(
+   972              () => {
+   973
+   974                  if (
+   975                      document.querySelector(
+   976                          "#oci-system-update"
+   977                      )
+   978                  ) {
+   979
+   980                      refreshAllFromCache();
 
-===== 06. ALL UPDATE SOURCES =====
-/opt/oci-zero-cost-lab/panel/common.py:8:SINGBOX=Path("/etc/sing-box/config.json")
-/opt/oci-zero-cost-lab/panel/common.py:104:      "services":{x:service_active(x) for x in ("sing-box","caddy","oci-linux-lab","ollama","oci-free-guard.timer")}
-/opt/oci-zero-cost-lab/panel/server.py:105:            if not real or not secrets.compare_digest(tok,real): self.page(b"not found",404); return
-/opt/oci-zero-cost-lab/panel/server.py:205:                    "ollama",
-/opt/oci-zero-cost-lab/panel/auth.py:26:        dig=hmac.new(key,msg,hashlib.sha1).digest()
-/opt/oci-zero-cost-lab/panel/auth.py:29:        if hmac.compare_digest(f"{n%1000000:06d}",str(code).strip()):
-/opt/oci-zero-cost-lab/panel/auth.py:40:    return bool(u and p and secrets.compare_digest(user,u) and secrets.compare_digest(pw,p))
-/opt/oci-zero-cost-lab/panel/singbox.py:12:    rc,ver=run(["sing-box","version"])
-/opt/oci-zero-cost-lab/panel/singbox.py:13:    rc2,chk=run(["sing-box","check","-c",str(SINGBOX)],timeout=30)
-/opt/oci-zero-cost-lab/panel/singbox.py:15:            "active":service_active("sing-box"),"nodes":nodes}
-/opt/oci-zero-cost-lab/panel/singbox.py:17:    rc,out=run(["systemctl","restart","sing-box"],timeout=30)
-/opt/oci-zero-cost-lab/panel/system_monitor.py:7:    "sing-box": "sing-box.service",
-/opt/oci-zero-cost-lab/panel/system_monitor.py:10:    "Ollama": "ollama.service",
-/opt/oci-zero-cost-lab/panel/system_monitor.py:14:    "sing-box": "sing-box.service",
-/opt/oci-zero-cost-lab/panel/system_monitor.py:16:    "Ollama": "ollama.service",
-/opt/oci-zero-cost-lab/panel/templates.py:248:<div class="nav" data-p="singbox">📦 <span>sing-box</span></div>
-/opt/oci-zero-cost-lab/panel/nodes.py:92:            "active": service_active("sing-box"),
-/opt/oci-zero-cost-lab/panel/certificates.py:8:CERT_DIR = Path("/etc/sing-box/certs")
-/opt/oci-zero-cost-lab/panel/certificates.py:154:    # sing-box normally runs as root; keep directory accessible.
-/opt/oci-zero-cost-lab/panel/certificates.py:158:        "sing-box",
-/opt/oci-zero-cost-lab/panel/certificates.py:167:            "error": "证书已复制，但 sing-box 配置检查失败",
-/opt/oci-zero-cost-lab/panel/certificates.py:172:        ["systemctl", "restart", "sing-box"],
-/opt/oci-zero-cost-lab/panel/logs.py:2:ALLOWED={"oci-linux-lab","sing-box","caddy","ollama"}
-/opt/oci-zero-cost-lab/panel/static/modules/logs.js:14:    <option>sing-box</option>
-/opt/oci-zero-cost-lab/panel/static/modules/logs.js:16:    <option>ollama</option>
-/opt/oci-zero-cost-lab/panel/static/modules/nodes.js:21:   数据直接读取 /etc/sing-box/config.json，不重新生成密钥。
-/opt/oci-zero-cost-lab/panel/static/modules/nodes.js:28:    '<div class="card">没有发现节点。请检查 sing-box 配置。</div>'
-/opt/oci-zero-cost-lab/panel/static/modules/nodes.js:164: ${n.active?'sing-box active':'sing-box inactive'}
-/opt/oci-zero-cost-lab/panel/static/modules/nodes.js:205:  '？\\n\\n系统会备份配置、检查配置并重启 sing-box。'
-/opt/oci-zero-cost-lab/panel/static/modules/actions.js:7:        message = "确认更新 sing-box？";
-/opt/oci-zero-cost-lab/panel/static/modules/ai.js:11:   当前连接本机 Ollama / Qwen3。
-/opt/oci-zero-cost-lab/panel/static/modules/ai.js:12:   可以直接询问 Linux、systemd、网络、sing-box 等问题。
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:37: *   "sing-box": {
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:60:        key: "sing-box",
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:61:        label: "sing-box",
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:62:        unit: "sing-box.service"
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:70:        key: "ollama",
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:71:        label: "Ollama",
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:72:        unit: "ollama.service"
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:89: * ["sing-box", "Caddy"]
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:133: *   "sing-box": {
-/opt/oci-zero-cost-lab/panel/static/modules/singbox-network.js:7: * Sing-box 页面进入时由 singbox.js 显式调用。
-/opt/oci-zero-cost-lab/panel/static/modules/singbox-network.js:56:              本模块只移动/展示状态，不修改当前 BBR、TUIC 或 sing-box 配置。
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:15:    * sing-box version 原始输出包含完整构建信息。
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:21:   let shortVersion = "sing-box";
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:27:       if(value.startsWith("sing-box version")){
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:66:   <h2>sing-box</h2>
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:141:   <button onclick="restartSB()">重启 sing-box</button>
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:156: if(!confirm('确定重启 sing-box？'))return;
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:248:  '确定申请/续期 sing-box TLS 证书？\\n\\n'+
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:302: *   -> sing-box version / apt updates / update errors
-/opt/oci-zero-cost-lab/panel/static/modules/subscription.js:122:     订阅始终读取当前 sing-box 配置。
-/opt/oci-zero-cost-lab/panel/static/modules/subscription.js:132:     以下 URI 直接从当前 sing-box 节点配置生成。
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:13:        title: "sing-box",
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:21:        key: "ollama",
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:23:        title: "Ollama",
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:28:    singbox: "sing-box",
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:30:    ollama: "Ollama",
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:446:            "📦 sing-box"
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:458:            "🤖 Ollama"
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:477:            loadComponent("ollama", false),
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:488:        ollama: null,
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:515:        data.ollama =
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:878:            "sing-box",
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:894:            data.ollama,
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:896:            "Ollama",
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:897:            "ollama"
-/opt/oci-zero-cost-lab/panel/network_opt.py:8:SINGBOX = Path("/etc/sing-box/config.json")
-/opt/oci-zero-cost-lab/panel/ai.py:14:MODEL=runtime_env().get("OLLAMA_MODEL") or parse_env().get("OLLAMA_MODEL") or "qwen3:4b-instruct"
-/opt/oci-zero-cost-lab/panel/ai.py:15:URL=runtime_env().get("OLLAMA_URL") or "http://127.0.0.1:11434"
-/opt/oci-zero-cost-lab/panel/ai.py:19:默认只提供只读诊断和学习建议。涉及修改 SSH、UFW、防火墙、sing-box、系统服务、软件包或删除数据时，
-/opt/oci-zero-cost-lab/panel/ai.py:23:    rc,out=__import__("subprocess").getstatusoutput("ollama list")
-/opt/oci-zero-cost-lab/panel/ai.py:40:        return {"ok":False,"error":f"Ollama 请求失败: {e}"}
-/opt/oci-zero-cost-lab/panel/oci_free.py:13:SINGBOX = Path("/etc/sing-box/config.json")
-/opt/oci-zero-cost-lab/panel/system.py:11:    return {x:service_active(x) for x in ("sing-box","caddy","oci-linux-lab","ollama","oci-free-guard.timer")}
-/opt/oci-zero-cost-lab/panel/raw_subscription.py:7:SINGBOX = Path("/etc/sing-box/config.json")
-/opt/oci-zero-cost-lab/panel/system_updates.py:20:#   ollama
-/opt/oci-zero-cost-lab/panel/system_updates.py:37:    "singbox": "SagerNet/sing-box",
-/opt/oci-zero-cost-lab/panel/system_updates.py:38:    "caddy": "caddyserver/caddy",
-/opt/oci-zero-cost-lab/panel/system_updates.py:39:    "ollama": "ollama/ollama",
-/opt/oci-zero-cost-lab/panel/system_updates.py:61:    url = f"https://api.github.com/repos/{repo}/releases/latest"
-/opt/oci-zero-cost-lab/panel/system_updates.py:92:            "url": f"https://github.com/{repo}/releases/latest",
-/opt/oci-zero-cost-lab/panel/system_updates.py:153:        shutil.which("sing-box")
-/opt/oci-zero-cost-lab/panel/system_updates.py:154:        or "/usr/bin/sing-box"
-/opt/oci-zero-cost-lab/panel/system_updates.py:161:            "error": "sing-box 未安装或不存在",
-/opt/oci-zero-cost-lab/panel/system_updates.py:170:        r"(?:sing-box\s+)?version\s+v?([0-9][0-9A-Za-z.\-_]*)",
-/opt/oci-zero-cost-lab/panel/system_updates.py:191:                or f"sing-box version check failed: exit={rc}"
-/opt/oci-zero-cost-lab/panel/system_updates.py:237:def _ollama_version():
-/opt/oci-zero-cost-lab/panel/system_updates.py:240:        shutil.which("ollama")
-/opt/oci-zero-cost-lab/panel/system_updates.py:241:        or "/usr/local/bin/ollama"
-/opt/oci-zero-cost-lab/panel/system_updates.py:244:    # Ollama 已经作为 systemd 服务运行时，
-/opt/oci-zero-cost-lab/panel/system_updates.py:248:    # 未定义导致的 Ollama CLI panic 影响。
-/opt/oci-zero-cost-lab/panel/system_updates.py:283:        api_error = "Ollama API 未返回版本号"
-/opt/oci-zero-cost-lab/panel/system_updates.py:288:    # 当前服务器的 Ollama systemd 用户为：
-/opt/oci-zero-cost-lab/panel/system_updates.py:289:    #   ollama
-/opt/oci-zero-cost-lab/panel/system_updates.py:291:    #   /usr/share/ollama
-/opt/oci-zero-cost-lab/panel/system_updates.py:296:            "HOME=/usr/share/ollama",
-/opt/oci-zero-cost-lab/panel/system_updates.py:297:            "USER=ollama",
-/opt/oci-zero-cost-lab/panel/system_updates.py:298:            "LOGNAME=ollama",
-/opt/oci-zero-cost-lab/panel/system_updates.py:306:        r"(?:ollama(?:\s+version)?\s*(?:is)?\s*)v?([0-9]+\.[0-9]+\.[0-9]+[^\s]*)",
-/opt/oci-zero-cost-lab/panel/system_updates.py:328:                or f"Ollama version check failed: exit={rc}"
-/opt/oci-zero-cost-lab/panel/system_updates.py:459:        "ollama",
-/opt/oci-zero-cost-lab/panel/system_updates.py:483:            "sing-box",
-/opt/oci-zero-cost-lab/panel/system_updates.py:501:    elif component == "ollama":
-/opt/oci-zero-cost-lab/panel/system_updates.py:503:        current = _ollama_version()
-/opt/oci-zero-cost-lab/panel/system_updates.py:505:            GITHUB_REPOS["ollama"]
-/opt/oci-zero-cost-lab/panel/system_updates.py:509:            "Ollama",
-/opt/oci-zero-cost-lab/panel/system_updates.py:566:        "ollama": check_component(
-/opt/oci-zero-cost-lab/panel/system_updates.py:567:            "ollama",
-/opt/oci-zero-cost-lab/panel/system_updates.py:627:    elif component == "ollama":
-/opt/oci-zero-cost-lab/panel/system_updates.py:629:        # 使用 Ollama 官方安装脚本。
-/opt/oci-zero-cost-lab/panel/system_updates.py:633:        # 非 0，但 Ollama 本体可能已经完成更新。
-/opt/oci-zero-cost-lab/panel/system_updates.py:637:        #   2. 主动重启 Ollama
-/opt/oci-zero-cost-lab/panel/system_updates.py:638:        #   3. 检查 Ollama API
-/opt/oci-zero-cost-lab/panel/system_updates.py:639:        #   4. 检查 Ollama CLI
-/opt/oci-zero-cost-lab/panel/system_updates.py:650:curl -fsSL https://ollama.com/install.sh | sh
-/opt/oci-zero-cost-lab/panel/system_updates.py:653:systemctl restart ollama
-/opt/oci-zero-cost-lab/panel/system_updates.py:661:cli=$(HOME=/usr/share/ollama USER=ollama LOGNAME=ollama     /usr/local/bin/ollama --version 2>&1)
-/opt/oci-zero-cost-lab/panel/system_updates.py:664:printf '\n[OCI-OLLAMA-UPDATE] install_rc=%s restart_rc=%s api_rc=%s cli_rc=%s\n'     "$install_rc" "$restart_rc" "$api_rc" "$cli_rc"
-/opt/oci-zero-cost-lab/panel/system_updates.py:666:printf '[OCI-OLLAMA-UPDATE] api=%s\n' "$api"
-/opt/oci-zero-cost-lab/panel/system_updates.py:667:printf '[OCI-OLLAMA-UPDATE] cli=%s\n' "$cli"
+===== 05. CORE API.JS =====
+     1  import { showError } from "./ui.js";
+     2
+     3  let CSRF = "";
+     4
+     5  export async function api(url, opt = {}) {
+     6      try {
+     7          opt = {
+     8              credentials: "same-origin",
+     9              ...opt,
+    10              headers: {
+    11                  ...(opt.headers || {})
+    12              }
+    13          };
+    14
+    15          if (opt.method === "POST") {
+    16              opt.headers["Content-Type"] = "application/json";
+    17
+    18              let body = {};
+    19
+    20              if (opt.body) {
+    21                  try {
+    22                      body = JSON.parse(opt.body);
+    23                  } catch (e) {
+    24                      body = {};
+    25                  }
+    26              }
+    27
+    28              body.csrf = CSRF;
+    29              opt.body = JSON.stringify(body);
+    30          }
+    31
+    32          const r = await fetch(url, opt);
+    33
+    34          if (r.status === 401) {
+    35              location = "/login";
+    36              return null;
+    37          }
+    38
+    39          const text = await r.text();
+    40
+    41          let data = null;
+    42
+    43          try {
+    44              data = JSON.parse(text);
+    45          } catch (e) {
+    46              throw new Error(
+    47                  "服务器返回的不是 JSON：HTTP " + r.status
+    48              );
+    49          }
+    50
+    51          if (!r.ok) {
+    52              throw new Error(
+    53                  data.error || ("HTTP " + r.status)
+    54              );
+    55          }
+    56
+    57          return data;
+    58
+    59      } catch (e) {
+    60          console.error(url, e);
+    61
+    62          if (url !== "/api/session") {
+    63              showError(e.message || String(e));
+    64          }
+    65
+    66          return null;
+    67      }
+    68  }
+    69
+    70  export async function initSession() {
+    71      const x = await api("/api/session");
+    72
+    73      if (x && x.csrf) {
+    74          CSRF = x.csrf;
+    75          return true;
+    76      }
+    77
+    78      const y = await api("/api/status");
+    79
+    80      if (y && y.csrf) {
+    81          CSRF = y.csrf;
+    82          return true;
+    83      }
+    84
+    85      return false;
+    86  }
+    87
+    88  export function getCSRF() {
+    89      return CSRF;
+    90  }
 
-===== 07. RUN-* UNITS FROM CURRENT BOOT =====
+===== 06. SERVER UPDATE ROUTES =====
+5:from . import common, auth, system, singbox, nodes, security, logs, ai, learning, templates, certificates, system_monitor, system_updates
+128:                    "csrf": self.session().get("csrf","")
+132:                x["csrf"] = self.session().get("csrf","")
+146:            elif p.path=="/api/system/monitor": self.json(system_monitor.collect())
+147:            elif p.path=="/api/system/updates":
+154:                        system_updates.check_component(
+161:                        system_updates.collect(
+175:    def do_POST(self):
+181:                sid,csrf=auth.new_session(); self.send_response(302); self.send_header("Location","/")
+190:            if d.get("csrf") != s.get("csrf"):
+191:                self.json({"error":"csrf validation failed"},403); return
+192:            if p.path in ("/api/ai/chat","/api/learning/complete") and d.get("confirm") in (None,""):
+196:            if d.get("confirm") not in ("CONFIRM","CHANGE-PORT"):
+197:                self.json({"error":"explicit confirmation required"},400); return
+199:            elif p.path=="/api/system/update":
+215:                    system_updates.update_component(
+225:            elif p.path=="/api/security/ufw/delete": self.json(security._v32_ufw_delete(d.get("number"), bool(d.get("confirm_ssh"))))
+
+--- surrounding update references ---
+
+--- lines 1-24 ---
+    1 from __future__ import annotations
+    2 import json, os, secrets, traceback, mimetypes
+    3 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    4 from urllib.parse import urlparse, parse_qs
+    5 from . import common, auth, system, singbox, nodes, security, logs, ai, learning, templates, certificates, system_monitor, system_updates
+    6 from . import network_opt
+    7 from .raw_subscription import raw_nodes
+    8 
+    9 STATIC_ROOT = os.path.abspath(
+   10     os.path.join(os.path.dirname(__file__), "static")
+   11 )
+   12 
+   13 def cookies(h):
+   14     out={}
+   15     for p in h.get("Cookie","").split(";"):
+   16         if "=" in p:
+   17             k,v=p.strip().split("=",1); out[k]=v
+   18     return out
+   19 
+   20 def static_file(path):
+   21     """
+   22     Serve authenticated panel static assets.
+   23 
+   24     Security:
+
+--- lines 138-165 ---
+  138             elif p.path=="/api/subscription":
+  139                 x = subscription_info()
+  140                 x["raw_nodes"] = raw_nodes()
+  141                 self.json(x)
+  142             elif p.path=="/api/security": self.json(security.status())
+  143             elif p.path=="/api/security/ufw": self.json(security._v32_ufw_status())
+  144             elif p.path=="/api/singbox/network": self.json(network_opt.status())
+  145             elif p.path=="/api/certificates": self.json(certificates.status())
+  146             elif p.path=="/api/system/monitor": self.json(system_monitor.collect())
+  147             elif p.path=="/api/system/updates":
+  148                 q = parse_qs(p.query)
+  149                 component = q.get("component", [""])[0].strip().lower()
+  150                 force = q.get("refresh", ["0"])[0] == "1"
+  151 
+  152                 if component:
+  153                     self.json(
+  154                         system_updates.check_component(
+  155                             component,
+  156                             force=force
+  157                         )
+  158                     )
+  159                 else:
+  160                     self.json(
+  161                         system_updates.collect(
+  162                             force=force
+  163                         )
+  164                     )
+  165             elif p.path=="/api/learning/courses": self.json({"courses":learning.courses()})
+
+--- lines 139-166 ---
+  139                 x = subscription_info()
+  140                 x["raw_nodes"] = raw_nodes()
+  141                 self.json(x)
+  142             elif p.path=="/api/security": self.json(security.status())
+  143             elif p.path=="/api/security/ufw": self.json(security._v32_ufw_status())
+  144             elif p.path=="/api/singbox/network": self.json(network_opt.status())
+  145             elif p.path=="/api/certificates": self.json(certificates.status())
+  146             elif p.path=="/api/system/monitor": self.json(system_monitor.collect())
+  147             elif p.path=="/api/system/updates":
+  148                 q = parse_qs(p.query)
+  149                 component = q.get("component", [""])[0].strip().lower()
+  150                 force = q.get("refresh", ["0"])[0] == "1"
+  151 
+  152                 if component:
+  153                     self.json(
+  154                         system_updates.check_component(
+  155                             component,
+  156                             force=force
+  157                         )
+  158                     )
+  159                 else:
+  160                     self.json(
+  161                         system_updates.collect(
+  162                             force=force
+  163                         )
+  164                     )
+  165             elif p.path=="/api/learning/courses": self.json({"courses":learning.courses()})
+  166             elif p.path.startswith("/api/learning/lesson/"):
+
+--- lines 146-173 ---
+  146             elif p.path=="/api/system/monitor": self.json(system_monitor.collect())
+  147             elif p.path=="/api/system/updates":
+  148                 q = parse_qs(p.query)
+  149                 component = q.get("component", [""])[0].strip().lower()
+  150                 force = q.get("refresh", ["0"])[0] == "1"
+  151 
+  152                 if component:
+  153                     self.json(
+  154                         system_updates.check_component(
+  155                             component,
+  156                             force=force
+  157                         )
+  158                     )
+  159                 else:
+  160                     self.json(
+  161                         system_updates.collect(
+  162                             force=force
+  163                         )
+  164                     )
+  165             elif p.path=="/api/learning/courses": self.json({"courses":learning.courses()})
+  166             elif p.path.startswith("/api/learning/lesson/"):
+  167                 cid=p.path.rsplit("/",1)[1]; c=learning.lesson(cid)
+  168                 self.json({"title":cid,"content":c or "not found"},200 if c else 404)
+  169             elif p.path=="/api/learning/progress": self.json(learning.progress())
+  170             elif p.path=="/api/services": self.json(system.services())
+  171             elif p.path=="/api/ai/status": self.json(ai.status())
+  172             elif p.path=="/api/logs": self.json({"log":logs.get(parse_qs(p.query).get("service",["oci-linux-lab"])[0])})
+  173             else:self.json({"error":"not found"},404)
+
+--- lines 153-180 ---
+  153                     self.json(
+  154                         system_updates.check_component(
+  155                             component,
+  156                             force=force
+  157                         )
+  158                     )
+  159                 else:
+  160                     self.json(
+  161                         system_updates.collect(
+  162                             force=force
+  163                         )
+  164                     )
+  165             elif p.path=="/api/learning/courses": self.json({"courses":learning.courses()})
+  166             elif p.path.startswith("/api/learning/lesson/"):
+  167                 cid=p.path.rsplit("/",1)[1]; c=learning.lesson(cid)
+  168                 self.json({"title":cid,"content":c or "not found"},200 if c else 404)
+  169             elif p.path=="/api/learning/progress": self.json(learning.progress())
+  170             elif p.path=="/api/services": self.json(system.services())
+  171             elif p.path=="/api/ai/status": self.json(ai.status())
+  172             elif p.path=="/api/logs": self.json({"log":logs.get(parse_qs(p.query).get("service",["oci-linux-lab"])[0])})
+  173             else:self.json({"error":"not found"},404)
+  174         except Exception as e:self.json({"error":str(e)},500)
+  175     def do_POST(self):
+  176         p=urlparse(self.path)
+  177         if p.path=="/login":
+  178             form=parse_qs(self.body_raw().decode(errors="replace"))
+  179             u=form.get("user",[""])[0]; pw=form.get("password",[""])[0]; code=form.get("totp",[""])[0]
+  180             if auth.password_ok(u,pw) and auth.verify_totp(code):
+
+--- lines 188-215 ---
+  188         try:
+  189             d=self.body()
+  190             if d.get("csrf") != s.get("csrf"):
+  191                 self.json({"error":"csrf validation failed"},403); return
+  192             if p.path in ("/api/ai/chat","/api/learning/complete") and d.get("confirm") in (None,""):
+  193                 if p.path=="/api/ai/chat": self.json(ai.chat(d.get("messages",[])))
+  194                 else: self.json({"progress":learning.mark(str(d.get("id","")))})
+  195                 return
+  196             if d.get("confirm") not in ("CONFIRM","CHANGE-PORT"):
+  197                 self.json({"error":"explicit confirmation required"},400); return
+  198             if p.path=="/api/ai/chat": self.json(ai.chat(d.get("messages",[])))
+  199             elif p.path=="/api/system/update":
+  200                 component = str(d.get("component", "")).strip().lower()
+  201 
+  202                 if component not in (
+  203                     "singbox",
+  204                     "caddy",
+  205                     "ollama",
+  206                     "apt",
+  207                 ):
+  208                     self.json(
+  209                         {"error": "unknown update component"},
+  210                         400
+  211                     )
+  212                     return
+  213 
+  214                 self.json(
+  215                     system_updates.update_component(
+
+--- lines 191-218 ---
+  191                 self.json({"error":"csrf validation failed"},403); return
+  192             if p.path in ("/api/ai/chat","/api/learning/complete") and d.get("confirm") in (None,""):
+  193                 if p.path=="/api/ai/chat": self.json(ai.chat(d.get("messages",[])))
+  194                 else: self.json({"progress":learning.mark(str(d.get("id","")))})
+  195                 return
+  196             if d.get("confirm") not in ("CONFIRM","CHANGE-PORT"):
+  197                 self.json({"error":"explicit confirmation required"},400); return
+  198             if p.path=="/api/ai/chat": self.json(ai.chat(d.get("messages",[])))
+  199             elif p.path=="/api/system/update":
+  200                 component = str(d.get("component", "")).strip().lower()
+  201 
+  202                 if component not in (
+  203                     "singbox",
+  204                     "caddy",
+  205                     "ollama",
+  206                     "apt",
+  207                 ):
+  208                     self.json(
+  209                         {"error": "unknown update component"},
+  210                         400
+  211                     )
+  212                     return
+  213 
+  214                 self.json(
+  215                     system_updates.update_component(
+  216                         component
+  217                     )
+  218                 )
+
+--- lines 207-234 ---
+  207                 ):
+  208                     self.json(
+  209                         {"error": "unknown update component"},
+  210                         400
+  211                     )
+  212                     return
+  213 
+  214                 self.json(
+  215                     system_updates.update_component(
+  216                         component
+  217                     )
+  218                 )
+  219 
+  220             elif p.path=="/api/singbox/restart": self.json(singbox.restart())
+  221             elif p.path=="/api/node/port": self.json(nodes.change_port(d.get("index"),d.get("port")))
+  222             elif p.path=="/api/certificates/issue": self.json(certificates.issue())
+  223             elif p.path=="/api/security/ufw/add": self.json(security._v32_ufw_add(d))
+  224             elif p.path=="/api/security/ufw/modify": self.json(security._v32_ufw_modify(d))
+  225             elif p.path=="/api/security/ufw/delete": self.json(security._v32_ufw_delete(d.get("number"), bool(d.get("confirm_ssh"))))
+  226             elif p.path=="/api/security/ufw/enable": self.json(security._v32_ufw_enable())
+  227             elif p.path=="/api/security/ufw/disable": self.json(security._v32_ufw_disable())
+  228             elif p.path=="/api/action":
+  229                 a=d.get("action")
+  230                 if a=="singbox-update": self.json(singbox.update())
+  231                 elif a=="system-update": self.json(system.update_system())
+  232                 else:self.json({"error":"unknown action"},400)
+  233             else:self.json({"error":"not found"},404)
+  234         except Exception as e:self.json({"error":str(e)},500)
+
+===== 07. ALL UPDATE FETCH CALLS =====
+/opt/oci-zero-cost-lab/panel/static/modules/actions.js:3:export async function confirmAction(action) {
+/opt/oci-zero-cost-lab/panel/static/modules/actions.js:60:window.confirmAction = confirmAction;
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:12: * /api/system/monitor
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:458:                "/api/system/monitor"
+/opt/oci-zero-cost-lab/panel/static/modules/security-ufw.js:182:            await api("/api/security/ufw/add", {method:"POST", body:JSON.stringify({...payload,confirm:"CONFIRM"})});
+/opt/oci-zero-cost-lab/panel/static/modules/security-ufw.js:192:            const r = await api("/api/security/ufw/modify", {method:"POST", body:JSON.stringify({...payload,number:n,confirm:"CONFIRM",confirm_ssh:confirmSsh})});
+/opt/oci-zero-cost-lab/panel/static/modules/security-ufw.js:216:        const x = await api("/api/security/ufw/delete", {method:"POST",body:JSON.stringify({number,confirm:"CONFIRM",confirm_ssh:confirmSsh})});
+/opt/oci-zero-cost-lab/panel/static/modules/security-ufw.js:231:    try { await api("/api/security/ufw/enable", {method:"POST",body:JSON.stringify({confirm:"CONFIRM"})}); await load(); }
+/opt/oci-zero-cost-lab/panel/static/modules/security-ufw.js:237:    try { await api("/api/security/ufw/disable", {method:"POST",body:JSON.stringify({confirm:"CONFIRM"})}); await load(); }
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:5:import { confirmAction } from "./actions.js";
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:144:   onclick="confirmAction('singbox-update')">
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:298: * /api/system/monitor
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:301: * /api/system/updates
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:358: * 不再存在 /api/system/updates 的总检查调用。
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:367:        "/api/system/updates?component=" +
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:374:    return await api(url);
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:427: *   /api/system/updates
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:695:            await api(
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:696:                "/api/system/update",
+/opt/oci-zero-cost-lab/panel/static/core/api.js:32:        const r = await fetch(url, opt);
+
+===== 08. BACKEND UPDATE REFERENCES =====
+/opt/oci-zero-cost-lab/panel/server.py:5:from . import common, auth, system, singbox, nodes, security, logs, ai, learning, templates, certificates, system_monitor, system_updates
+/opt/oci-zero-cost-lab/panel/server.py:146:            elif p.path=="/api/system/monitor": self.json(system_monitor.collect())
+/opt/oci-zero-cost-lab/panel/server.py:147:            elif p.path=="/api/system/updates":
+/opt/oci-zero-cost-lab/panel/server.py:154:                        system_updates.check_component(
+/opt/oci-zero-cost-lab/panel/server.py:161:                        system_updates.collect(
+/opt/oci-zero-cost-lab/panel/server.py:199:            elif p.path=="/api/system/update":
+/opt/oci-zero-cost-lab/panel/server.py:215:                    system_updates.update_component(
+/opt/oci-zero-cost-lab/panel/server.py:230:                if a=="singbox-update": self.json(singbox.update())
+/opt/oci-zero-cost-lab/panel/singbox.py:21:                "/opt/oci-zero-cost-lab/scripts/singbox-update"],timeout=900)
+/opt/oci-zero-cost-lab/panel/system_updates.py:28:# 手动更新必须由 server.py 经过显式确认后调用 update_component()
+/opt/oci-zero-cost-lab/panel/system_updates.py:582:def update_component(component):
+/opt/oci-zero-cost-lab/panel/system_updates.py:594:                "/opt/oci-zero-cost-lab/scripts/singbox-update",
+/opt/oci-zero-cost-lab/panel/system_updates.py:622:                "/opt/oci-zero-cost-lab/scripts/caddy-update",
+
+===== 09. RECENT TRANSIENT UNITS =====
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
+Oct 08 07:49:46 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
+Oct 08 07:49:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1308.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Oct 08 07:49:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1308.service: Failed with result 'exit-code'.
+Oct 08 07:52:42 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
+Oct 08 07:52:43 hhrcfhqf-oracle-cloud systemd[1]: run-u1309.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Oct 08 07:52:43 hhrcfhqf-oracle-cloud systemd[1]: run-u1309.service: Failed with result 'exit-code'.
+Oct 08 07:56:32 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
+Oct 08 07:56:39 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1310.service: Main process exited, code=exited, status=1/FAILURE
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1310.service: Failed with result 'exit-code'.
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1310.service: Consumed 1.057s CPU time.
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1311.service: Deactivated successfully.
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1311.service: Consumed 1.050s CPU time.
+Oct 08 07:58:32 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1312.service: Main process exited, code=exited, status=1/FAILURE
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1312.service: Failed with result 'exit-code'.
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1312.service: Consumed 1.061s CPU time.
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1313.service: Deactivated successfully.
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1313.service: Consumed 1.040s CPU time.
+
+===== 10. CADDY JOURNAL =====
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"warn","ts":1791445639.1029756,"logger":"http.auto_https","msg":"server is listening only on the HTTP port, so no automatic HTTPS will be applied to this server","server_name":"srv1","http_port":80}
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.1030512,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x50737032fb00"}
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.1033459,"logger":"http","msg":"enabling HTTP/3 listener","addr":":2053"}
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.103505,"logger":"http.log","msg":"server running","name":"srv0","protocols":["h1","h2","h3"]}
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"warn","ts":1791445639.1035705,"logger":"http","msg":"HTTP/2 skipped because it requires TLS","network":"tcp","addr":":80"}
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"warn","ts":1791445639.1035776,"logger":"http","msg":"HTTP/3 skipped because it requires TLS","network":"tcp","addr":":80"}
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.1035798,"logger":"http.log","msg":"server running","name":"srv1","protocols":["h1","h2","h3"]}
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.1035833,"logger":"http","msg":"enabling automatic TLS certificate management","domains":["panel.hhrcfhqfv.qzz.io"]}
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.1038928,"msg":"autosaved config (load with --resume flag)","file":"/var/lib/caddy/.config/caddy/autosave.json"}
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.1039486,"msg":"serving initial configuration"}
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud systemd[1]: Started Caddy.
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.108896,"logger":"tls","msg":"storage cleaning happened too recently; skipping for now","storage":"FileStorage:/var/lib/caddy/.local/share/caddy","instance":"8c0517f1-1cb2-4341-be1a-63ee789ca3e2","try_again":1791532039.1088948,"try_again_in":86399.99999976}
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.1089718,"logger":"tls","msg":"finished cleaning storage units"}
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud systemd[1]: Stopping Caddy...
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.5205088,"msg":"shutting down apps, then terminating","signal":"SIGTERM"}
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"warn","ts":1791445639.5207245,"msg":"exiting; byeee!! 👋","signal":"SIGTERM"}
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.5207639,"logger":"http","msg":"servers shutting down with eternal grace period"}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: State 'stop-sigterm' timed out. Killing.
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522954 (caddy) with signal SIGKILL.
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522956 (caddy) with signal SIGKILL.
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522957 (caddy) with signal SIGKILL.
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522959 (caddy) with signal SIGKILL.
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522960 (caddy) with signal SIGKILL.
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522961 (caddy) with signal SIGKILL.
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: Stopped Caddy.
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: Starting Caddy...
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: caddy.HomeDir=/var/lib/caddy
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: caddy.AppDataDir=/var/lib/caddy/.local/share/caddy
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: caddy.AppConfigDir=/var/lib/caddy/.config/caddy
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: caddy.ConfigAutosavePath=/var/lib/caddy/.config/caddy/autosave.json
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: caddy.Version=v2.11.4 h1:XKxkMTgNSizEvKG6QHue6cAsFOteU2qA61w2tKkCWi0=
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: runtime.GOOS=linux
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: runtime.GOARCH=arm64
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: runtime.Compiler=gc
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: runtime.NumCPU=2
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: runtime.GOMAXPROCS=2
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: runtime.Version=go1.26.3
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: os.Getwd=/
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: LANG=C.UTF-8
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: NOTIFY_SOCKET=/run/systemd/notify
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: HOME=/var/lib/caddy
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: LOGNAME=caddy
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: USER=caddy
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: INVOCATION_ID=d84ae199cc7a4161ad9dce7b6483be91
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: JOURNAL_STREAM=8:4431331
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: SYSTEMD_EXEC_PID=522972
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.607449,"msg":"maxprocs: Leaving GOMAXPROCS=2: CPU quota undefined"}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.607496,"msg":"GOMEMLIMIT is updated","GOMEMLIMIT":11261310566,"previous":9223372036854775807}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.607506,"msg":"using config from file","file":"/etc/caddy/Caddyfile"}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6075087,"msg":"adapted config to JSON","adapter":"caddyfile"}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"warn","ts":1791445644.607511,"msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","adapter":"caddyfile","file":"/etc/caddy/Caddyfile","line":2}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6081538,"logger":"admin","msg":"admin endpoint started","address":"localhost:2019","enforce_origin":false,"origins":["//[::1]:2019","//127.0.0.1:2019","//localhost:2019"]}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6083179,"logger":"http.auto_https","msg":"server is listening only on the HTTPS port but has no TLS connection policies; adding one to enable TLS","server_name":"srv0","https_port":2053}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6083586,"logger":"http.auto_https","msg":"enabling automatic HTTP->HTTPS redirects","server_name":"srv0"}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"warn","ts":1791445644.608372,"logger":"http.auto_https","msg":"server is listening only on the HTTP port, so no automatic HTTPS will be applied to this server","server_name":"srv1","http_port":80}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6092544,"logger":"http","msg":"enabling HTTP/3 listener","addr":":2053"}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6099691,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x36e7c40e980"}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6101015,"logger":"http.log","msg":"server running","name":"srv0","protocols":["h1","h2","h3"]}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"warn","ts":1791445644.6101544,"logger":"http","msg":"HTTP/2 skipped because it requires TLS","network":"tcp","addr":":80"}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"warn","ts":1791445644.61016,"logger":"http","msg":"HTTP/3 skipped because it requires TLS","network":"tcp","addr":":80"}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6101677,"logger":"http.log","msg":"server running","name":"srv1","protocols":["h1","h2","h3"]}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6101713,"logger":"http","msg":"enabling automatic TLS certificate management","domains":["panel.hhrcfhqfv.qzz.io"]}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.612288,"msg":"autosaved config (load with --resume flag)","file":"/var/lib/caddy/.config/caddy/autosave.json"}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: Started Caddy.
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6136146,"msg":"serving initial configuration"}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6174493,"logger":"tls","msg":"storage cleaning happened too recently; skipping for now","storage":"FileStorage:/var/lib/caddy/.local/share/caddy","instance":"8c0517f1-1cb2-4341-be1a-63ee789ca3e2","try_again":1791532044.617448,"try_again_in":86399.99999976}
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6175156,"logger":"tls","msg":"finished cleaning storage units"}
+Oct 08 07:56:33 hhrcfhqf-oracle-cloud systemd[1]: Stopping Caddy...
+Oct 08 07:56:33 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791446193.5737822,"msg":"shutting down apps, then terminating","signal":"SIGTERM"}
+Oct 08 07:56:33 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"warn","ts":1791446193.5738652,"msg":"exiting; byeee!! 👋","signal":"SIGTERM"}
+Oct 08 07:56:33 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791446193.5739021,"logger":"http","msg":"servers shutting down with eternal grace period"}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: State 'stop-sigterm' timed out. Killing.
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522972 (caddy) with signal SIGKILL.
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522974 (caddy) with signal SIGKILL.
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522976 (caddy) with signal SIGKILL.
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522977 (caddy) with signal SIGKILL.
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522978 (caddy) with signal SIGKILL.
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522979 (caddy) with signal SIGKILL.
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522980 (caddy) with signal SIGKILL.
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: Stopped Caddy.
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: Starting Caddy...
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: caddy.HomeDir=/var/lib/caddy
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: caddy.AppDataDir=/var/lib/caddy/.local/share/caddy
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: caddy.AppConfigDir=/var/lib/caddy/.config/caddy
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: caddy.ConfigAutosavePath=/var/lib/caddy/.config/caddy/autosave.json
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: caddy.Version=v2.11.7 h1:yj0Y4fYZGPkSvibBJ1sTWE33xC0fxztVyXEW5iIdUT4=
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: runtime.GOOS=linux
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: runtime.GOARCH=arm64
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: runtime.Compiler=gc
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: runtime.NumCPU=2
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: runtime.GOMAXPROCS=2
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: runtime.Version=go1.26.8
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: os.Getwd=/
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: LANG=C.UTF-8
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: NOTIFY_SOCKET=/run/systemd/notify
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: HOME=/var/lib/caddy
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: LOGNAME=caddy
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: USER=caddy
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: INVOCATION_ID=1d10a188429445d0a0b77ff239d61e25
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: JOURNAL_STREAM=8:4437955
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: SYSTEMD_EXEC_PID=524016
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8584685,"msg":"maxprocs: Leaving GOMAXPROCS=2: CPU quota undefined"}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8584833,"msg":"GOMEMLIMIT is updated","GOMEMLIMIT":11261310566,"previous":9223372036854775807}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8584864,"msg":"using config from file","file":"/etc/caddy/Caddyfile"}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8584893,"msg":"adapted config to JSON","adapter":"caddyfile"}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"warn","ts":1791446198.8584914,"msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","adapter":"caddyfile","file":"/etc/caddy/Caddyfile","line":2}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8590763,"logger":"admin","msg":"admin endpoint started","address":"localhost:2019","enforce_origin":false,"origins":["//localhost:2019","//[::1]:2019","//127.0.0.1:2019"]}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.859245,"logger":"http.auto_https","msg":"server is listening only on the HTTPS port but has no TLS connection policies; adding one to enable TLS","server_name":"srv0","https_port":2053}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.859265,"logger":"http.auto_https","msg":"enabling automatic HTTP->HTTPS redirects","server_name":"srv0"}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"warn","ts":1791446198.859276,"logger":"http.auto_https","msg":"server is listening only on the HTTP port, so no automatic HTTPS will be applied to this server","server_name":"srv1","http_port":80}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.859642,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x1b2613073080"}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8597252,"logger":"http","msg":"enabling HTTP/3 listener","addr":":2053"}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8602977,"logger":"http.log","msg":"server running","name":"srv0","protocols":["h1","h2","h3"]}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"warn","ts":1791446198.8603532,"logger":"http","msg":"HTTP/2 skipped because it requires TLS","network":"tcp","addr":":80"}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"warn","ts":1791446198.8603587,"logger":"http","msg":"HTTP/3 skipped because it requires TLS","network":"tcp","addr":":80"}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8603609,"logger":"http.log","msg":"server running","name":"srv1","protocols":["h1","h2","h3"]}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8603637,"logger":"http","msg":"enabling automatic TLS certificate management","domains":["panel.hhrcfhqfv.qzz.io"]}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8611474,"msg":"autosaved config (load with --resume flag)","file":"/var/lib/caddy/.config/caddy/autosave.json"}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: Started Caddy.
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8612301,"msg":"serving initial configuration"}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.865097,"logger":"tls","msg":"storage cleaning happened too recently; skipping for now","storage":"FileStorage:/var/lib/caddy/.local/share/caddy","instance":"8c0517f1-1cb2-4341-be1a-63ee789ca3e2","try_again":1791532598.8650954,"try_again_in":86399.99999976}
+Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8653798,"logger":"tls","msg":"finished cleaning storage units"}
+Oct 08 07:56:40 hhrcfhqf-oracle-cloud systemd[1]: Stopping Caddy...
+Oct 08 07:56:40 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446200.5476782,"msg":"shutting down apps, then terminating","signal":"SIGTERM"}
+Oct 08 07:56:40 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"warn","ts":1791446200.5477707,"msg":"exiting; byeee!! 👋","signal":"SIGTERM"}
+Oct 08 07:56:40 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446200.5477855,"logger":"http","msg":"servers shutting down with eternal grace period"}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: State 'stop-sigterm' timed out. Killing.
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524016 (caddy) with signal SIGKILL.
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524018 (caddy) with signal SIGKILL.
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524019 (caddy) with signal SIGKILL.
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524020 (caddy) with signal SIGKILL.
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524021 (caddy) with signal SIGKILL.
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524022 (caddy) with signal SIGKILL.
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: Stopped Caddy.
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: Starting Caddy...
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: caddy.HomeDir=/var/lib/caddy
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: caddy.AppDataDir=/var/lib/caddy/.local/share/caddy
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: caddy.AppConfigDir=/var/lib/caddy/.config/caddy
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: caddy.ConfigAutosavePath=/var/lib/caddy/.config/caddy/autosave.json
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: caddy.Version=v2.11.4 h1:XKxkMTgNSizEvKG6QHue6cAsFOteU2qA61w2tKkCWi0=
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: runtime.GOOS=linux
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: runtime.GOARCH=arm64
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: runtime.Compiler=gc
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: runtime.NumCPU=2
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: runtime.GOMAXPROCS=2
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: runtime.Version=go1.26.3
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: os.Getwd=/
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: LANG=C.UTF-8
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: NOTIFY_SOCKET=/run/systemd/notify
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: HOME=/var/lib/caddy
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: LOGNAME=caddy
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: USER=caddy
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: INVOCATION_ID=8cce3ebd30af445baaa470b65d3502ff
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: JOURNAL_STREAM=8:4438596
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: SYSTEMD_EXEC_PID=524083
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.639418,"msg":"maxprocs: Leaving GOMAXPROCS=2: CPU quota undefined"}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6394336,"msg":"GOMEMLIMIT is updated","GOMEMLIMIT":11261310566,"previous":9223372036854775807}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6394382,"msg":"using config from file","file":"/etc/caddy/Caddyfile"}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6394405,"msg":"adapted config to JSON","adapter":"caddyfile"}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"warn","ts":1791446205.6394427,"msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","adapter":"caddyfile","file":"/etc/caddy/Caddyfile","line":2}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6401792,"logger":"admin","msg":"admin endpoint started","address":"localhost:2019","enforce_origin":false,"origins":["//localhost:2019","//[::1]:2019","//127.0.0.1:2019"]}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.640335,"logger":"http.auto_https","msg":"server is listening only on the HTTPS port but has no TLS connection policies; adding one to enable TLS","server_name":"srv0","https_port":2053}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6403549,"logger":"http.auto_https","msg":"enabling automatic HTTP->HTTPS redirects","server_name":"srv0"}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"warn","ts":1791446205.6403694,"logger":"http.auto_https","msg":"server is listening only on the HTTP port, so no automatic HTTPS will be applied to this server","server_name":"srv1","http_port":80}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.640623,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x25b09c28bc80"}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6410537,"logger":"http","msg":"enabling HTTP/3 listener","addr":":2053"}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6418164,"logger":"http.log","msg":"server running","name":"srv0","protocols":["h1","h2","h3"]}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"warn","ts":1791446205.642016,"logger":"http","msg":"HTTP/2 skipped because it requires TLS","network":"tcp","addr":":80"}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"warn","ts":1791446205.6420293,"logger":"http","msg":"HTTP/3 skipped because it requires TLS","network":"tcp","addr":":80"}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6420333,"logger":"http.log","msg":"server running","name":"srv1","protocols":["h1","h2","h3"]}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6420372,"logger":"http","msg":"enabling automatic TLS certificate management","domains":["panel.hhrcfhqfv.qzz.io"]}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6425052,"msg":"autosaved config (load with --resume flag)","file":"/var/lib/caddy/.config/caddy/autosave.json"}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: Started Caddy.
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6464005,"msg":"serving initial configuration"}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6508567,"logger":"tls","msg":"storage cleaning happened too recently; skipping for now","storage":"FileStorage:/var/lib/caddy/.local/share/caddy","instance":"8c0517f1-1cb2-4341-be1a-63ee789ca3e2","try_again":1791532605.6508555,"try_again_in":86399.99999956}
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.651056,"logger":"tls","msg":"finished cleaning storage units"}
+Oct 08 07:58:33 hhrcfhqf-oracle-cloud systemd[1]: Stopping Caddy...
+Oct 08 07:58:33 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446313.450513,"msg":"shutting down apps, then terminating","signal":"SIGTERM"}
+Oct 08 07:58:33 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"warn","ts":1791446313.4506404,"msg":"exiting; byeee!! 👋","signal":"SIGTERM"}
+Oct 08 07:58:33 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446313.4506965,"logger":"http","msg":"servers shutting down with eternal grace period"}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: State 'stop-sigterm' timed out. Killing.
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524083 (caddy) with signal SIGKILL.
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524084 (caddy) with signal SIGKILL.
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524085 (caddy) with signal SIGKILL.
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524086 (caddy) with signal SIGKILL.
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524087 (caddy) with signal SIGKILL.
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524088 (caddy) with signal SIGKILL.
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524089 (caddy) with signal SIGKILL.
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: Stopped Caddy.
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: Starting Caddy...
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: caddy.HomeDir=/var/lib/caddy
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: caddy.AppDataDir=/var/lib/caddy/.local/share/caddy
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: caddy.AppConfigDir=/var/lib/caddy/.config/caddy
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: caddy.ConfigAutosavePath=/var/lib/caddy/.config/caddy/autosave.json
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: caddy.Version=v2.11.7 h1:yj0Y4fYZGPkSvibBJ1sTWE33xC0fxztVyXEW5iIdUT4=
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: runtime.GOOS=linux
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: runtime.GOARCH=arm64
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: runtime.Compiler=gc
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: runtime.NumCPU=2
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: runtime.GOMAXPROCS=2
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: runtime.Version=go1.26.8
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: os.Getwd=/
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: LANG=C.UTF-8
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: NOTIFY_SOCKET=/run/systemd/notify
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: HOME=/var/lib/caddy
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: LOGNAME=caddy
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: USER=caddy
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: INVOCATION_ID=638c258cf11142a3a2e462d980ebc045
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: JOURNAL_STREAM=8:4441284
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: SYSTEMD_EXEC_PID=524351
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.608054,"msg":"maxprocs: Leaving GOMAXPROCS=2: CPU quota undefined"}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.608078,"msg":"GOMEMLIMIT is updated","GOMEMLIMIT":11261310566,"previous":9223372036854775807}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.608087,"msg":"using config from file","file":"/etc/caddy/Caddyfile"}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6080904,"msg":"adapted config to JSON","adapter":"caddyfile"}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"warn","ts":1791446318.608093,"msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","adapter":"caddyfile","file":"/etc/caddy/Caddyfile","line":2}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6094866,"logger":"admin","msg":"admin endpoint started","address":"localhost:2019","enforce_origin":false,"origins":["//[::1]:2019","//127.0.0.1:2019","//localhost:2019"]}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6096833,"logger":"http.auto_https","msg":"server is listening only on the HTTPS port but has no TLS connection policies; adding one to enable TLS","server_name":"srv0","https_port":2053}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.609704,"logger":"http.auto_https","msg":"enabling automatic HTTP->HTTPS redirects","server_name":"srv0"}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"warn","ts":1791446318.6097176,"logger":"http.auto_https","msg":"server is listening only on the HTTP port, so no automatic HTTPS will be applied to this server","server_name":"srv1","http_port":80}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.610459,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x2932ee240700"}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6106055,"logger":"http","msg":"enabling HTTP/3 listener","addr":":2053"}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6111107,"logger":"http.log","msg":"server running","name":"srv0","protocols":["h1","h2","h3"]}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"warn","ts":1791446318.6111574,"logger":"http","msg":"HTTP/2 skipped because it requires TLS","network":"tcp","addr":":80"}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"warn","ts":1791446318.6111624,"logger":"http","msg":"HTTP/3 skipped because it requires TLS","network":"tcp","addr":":80"}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.611165,"logger":"http.log","msg":"server running","name":"srv1","protocols":["h1","h2","h3"]}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6111681,"logger":"http","msg":"enabling automatic TLS certificate management","domains":["panel.hhrcfhqfv.qzz.io"]}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6113102,"msg":"autosaved config (load with --resume flag)","file":"/var/lib/caddy/.config/caddy/autosave.json"}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.611361,"msg":"serving initial configuration"}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: Started Caddy.
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6184983,"logger":"tls","msg":"storage cleaning happened too recently; skipping for now","storage":"FileStorage:/var/lib/caddy/.local/share/caddy","instance":"8c0517f1-1cb2-4341-be1a-63ee789ca3e2","try_again":1791532718.6184964,"try_again_in":86399.99999976}
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6189077,"logger":"tls","msg":"finished cleaning storage units"}
+Oct 08 07:58:40 hhrcfhqf-oracle-cloud systemd[1]: Stopping Caddy...
+Oct 08 07:58:40 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446320.308433,"msg":"shutting down apps, then terminating","signal":"SIGTERM"}
+Oct 08 07:58:40 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"warn","ts":1791446320.30859,"msg":"exiting; byeee!! 👋","signal":"SIGTERM"}
+Oct 08 07:58:40 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446320.308609,"logger":"http","msg":"servers shutting down with eternal grace period"}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: State 'stop-sigterm' timed out. Killing.
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524351 (caddy) with signal SIGKILL.
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524353 (caddy) with signal SIGKILL.
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524355 (caddy) with signal SIGKILL.
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524356 (caddy) with signal SIGKILL.
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524357 (caddy) with signal SIGKILL.
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524358 (caddy) with signal SIGKILL.
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: Stopped Caddy.
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: Starting Caddy...
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: caddy.HomeDir=/var/lib/caddy
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: caddy.AppDataDir=/var/lib/caddy/.local/share/caddy
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: caddy.AppConfigDir=/var/lib/caddy/.config/caddy
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: caddy.ConfigAutosavePath=/var/lib/caddy/.config/caddy/autosave.json
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: caddy.Version=v2.11.4 h1:XKxkMTgNSizEvKG6QHue6cAsFOteU2qA61w2tKkCWi0=
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: runtime.GOOS=linux
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: runtime.GOARCH=arm64
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: runtime.Compiler=gc
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: runtime.NumCPU=2
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: runtime.GOMAXPROCS=2
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: runtime.Version=go1.26.3
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: os.Getwd=/
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: LANG=C.UTF-8
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: NOTIFY_SOCKET=/run/systemd/notify
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: HOME=/var/lib/caddy
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: LOGNAME=caddy
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: USER=caddy
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: INVOCATION_ID=7c83a94661914030bc57d6acec715a89
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: JOURNAL_STREAM=8:4441382
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: SYSTEMD_EXEC_PID=524422
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6442025,"msg":"maxprocs: Leaving GOMAXPROCS=2: CPU quota undefined"}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.644226,"msg":"GOMEMLIMIT is updated","GOMEMLIMIT":11261310566,"previous":9223372036854775807}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.644231,"msg":"using config from file","file":"/etc/caddy/Caddyfile"}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.644234,"msg":"adapted config to JSON","adapter":"caddyfile"}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"warn","ts":1791446325.644236,"msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","adapter":"caddyfile","file":"/etc/caddy/Caddyfile","line":2}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6447723,"logger":"admin","msg":"admin endpoint started","address":"localhost:2019","enforce_origin":false,"origins":["//localhost:2019","//[::1]:2019","//127.0.0.1:2019"]}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6449053,"logger":"http.auto_https","msg":"server is listening only on the HTTPS port but has no TLS connection policies; adding one to enable TLS","server_name":"srv0","https_port":2053}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6449184,"logger":"http.auto_https","msg":"enabling automatic HTTP->HTTPS redirects","server_name":"srv0"}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"warn","ts":1791446325.6449301,"logger":"http.auto_https","msg":"server is listening only on the HTTP port, so no automatic HTTPS will be applied to this server","server_name":"srv1","http_port":80}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6454325,"logger":"http","msg":"enabling HTTP/3 listener","addr":":2053"}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6457138,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x48b8ddb2bc00"}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6462996,"logger":"http.log","msg":"server running","name":"srv0","protocols":["h1","h2","h3"]}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"warn","ts":1791446325.646348,"logger":"http","msg":"HTTP/2 skipped because it requires TLS","network":"tcp","addr":":80"}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"warn","ts":1791446325.646353,"logger":"http","msg":"HTTP/3 skipped because it requires TLS","network":"tcp","addr":":80"}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.646355,"logger":"http.log","msg":"server running","name":"srv1","protocols":["h1","h2","h3"]}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.646358,"logger":"http","msg":"enabling automatic TLS certificate management","domains":["panel.hhrcfhqfv.qzz.io"]}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6470597,"msg":"autosaved config (load with --resume flag)","file":"/var/lib/caddy/.config/caddy/autosave.json"}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6471364,"msg":"serving initial configuration"}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: Started Caddy.
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6540098,"logger":"tls","msg":"storage cleaning happened too recently; skipping for now","storage":"FileStorage:/var/lib/caddy/.local/share/caddy","instance":"8c0517f1-1cb2-4341-be1a-63ee789ca3e2","try_again":1791532725.6540084,"try_again_in":86399.99999972}
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6541057,"logger":"tls","msg":"finished cleaning storage units"}
+
+===== 11. CADDY UPDATE TRANSIENT UNITS =====
+
+----- run-u1296.service -----
+Oct 08 07:08:30 hhrcfhqf-oracle-cloud systemd[1]: Started /usr/bin/python3 /opt/oci-zero-cost-lab/scripts/ufw-manager status.
 Oct 08 07:08:30 hhrcfhqf-oracle-cloud systemd[1]: run-u1296.service: Deactivated successfully.
+
+----- run-u1297.service -----
+Oct 08 07:08:44 hhrcfhqf-oracle-cloud systemd[1]: Started /usr/bin/python3 /opt/oci-zero-cost-lab/scripts/ufw-manager status.
 Oct 08 07:08:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1297.service: Deactivated successfully.
-Oct 08 07:08:50 hhrcfhqf-oracle-cloud systemd[1]: run-u1298.service: Main process exited, code=exited, status=22/n/a
-Oct 08 07:08:50 hhrcfhqf-oracle-cloud systemd[1]: run-u1298.service: Failed with result 'exit-code'.
 
-===== 08. RECENT RUN-U* UNITS =====
-
-===== 09. RUN-U1298 JOURNAL =====
+----- run-u1298.service -----
 Oct 08 07:08:49 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/singbox-update.
 Oct 08 07:08:50 hhrcfhqf-oracle-cloud systemd[1]: run-u1298.service: Main process exited, code=exited, status=22/n/a
 Oct 08 07:08:50 hhrcfhqf-oracle-cloud systemd[1]: run-u1298.service: Failed with result 'exit-code'.
 
-===== 10. RECENT TRANSIENT UNIT JOURNALS =====
+----- run-u1304.service -----
+Oct 08 07:35:58 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/singbox-update.
+Oct 08 07:36:02 hhrcfhqf-oracle-cloud systemd[1]: run-u1304.service: Deactivated successfully.
+Oct 08 07:36:02 hhrcfhqf-oracle-cloud systemd[1]: run-u1304.service: Consumed 1.634s CPU time.
 
-===== 11. RECENT /TMP FILES =====
-2026-10-08 07:13:01.0375030080      41093 /tmp/oci-update-failure-audit-20261008-071300.txt
+----- run-u1308.service -----
+Oct 08 07:49:46 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
+Oct 08 07:49:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1308.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Oct 08 07:49:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1308.service: Failed with result 'exit-code'.
 
-===== 12. RELEASE-URL PATTERNS =====
-/opt/oci-zero-cost-lab/panel/system_updates.py:61:    url = f"https://api.github.com/repos/{repo}/releases/latest"
-/opt/oci-zero-cost-lab/panel/system_updates.py:92:            "url": f"https://github.com/{repo}/releases/latest",
-/opt/oci-zero-cost-lab/panel/system_updates.py:620:                "curl -fsSL https://getcaddy.com "
+----- run-u1309.service -----
+Oct 08 07:52:42 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
+Oct 08 07:52:43 hhrcfhqf-oracle-cloud systemd[1]: run-u1309.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Oct 08 07:52:43 hhrcfhqf-oracle-cloud systemd[1]: run-u1309.service: Failed with result 'exit-code'.
 
-===== 13. SYSTEMD SERVICE =====
-● oci-linux-lab.service - OCI Linux Lab Panel
-     Loaded: loaded (/etc/systemd/system/oci-linux-lab.service; enabled; vendor preset: enabled)
-     Active: active (running) since Thu 2026-10-08 07:06:07 UTC; 6min ago
-   Main PID: 520815 (python3)
-      Tasks: 1 (limit: 14229)
-     Memory: 200.9M
-        CPU: 5.584s
-     CGroup: /system.slice/oci-linux-lab.service
-             └─520815 /usr/bin/python3 -m panel.server
+----- run-u1310.service -----
+Oct 08 07:56:32 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1310.service: Main process exited, code=exited, status=1/FAILURE
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1310.service: Failed with result 'exit-code'.
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1310.service: Consumed 1.057s CPU time.
 
-Oct 08 07:06:07 hhrcfhqf-oracle-cloud systemd[1]: Started OCI Linux Lab Panel.
-Oct 08 07:06:07 hhrcfhqf-oracle-cloud python3[520815]: OCI Linux Lab listening on 127.0.0.1:3000
+----- run-u1311.service -----
+Oct 08 07:56:39 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1311.service: Deactivated successfully.
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1311.service: Consumed 1.050s CPU time.
 
-===== 14. HEALTH =====
+----- run-u1312.service -----
+Oct 08 07:58:32 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1312.service: Main process exited, code=exited, status=1/FAILURE
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1312.service: Failed with result 'exit-code'.
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1312.service: Consumed 1.061s CPU time.
+
+----- run-u1313.service -----
+Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1313.service: Deactivated successfully.
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1313.service: Consumed 1.040s CPU time.
+
+----- run-u548.service -----
+Sep 19 10:28:04 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/node-port-change 2 12345.
+Sep 19 10:28:06 hhrcfhqf-oracle-cloud systemd[1]: run-u548.service: Deactivated successfully.
+
+----- run-u956.service -----
+Sep 29 05:25:43 hhrcfhqf-oracle-cloud systemd[1]: Started /usr/bin/python3 /opt/oci-zero-cost-lab/scripts/ufw-manager status.
+Sep 29 05:25:43 hhrcfhqf-oracle-cloud systemd[1]: run-u956.service: Deactivated successfully.
+
+----- run-u957.service -----
+Sep 29 05:26:30 hhrcfhqf-oracle-cloud systemd[1]: Started /usr/bin/python3 /opt/oci-zero-cost-lab/scripts/ufw-manager status.
+Sep 29 05:26:30 hhrcfhqf-oracle-cloud systemd[1]: run-u957.service: Deactivated successfully.
+
+===== 12. LOCAL PANEL PORT =====
+LISTEN 0      5          127.0.0.1:3000       0.0.0.0:*    users:(("python3",pid=523016,fd=3))                      
+
+===== 13. CURL LOCAL HEALTH =====
+*   Trying 127.0.0.1:3000...
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0* Connected to 127.0.0.1 (127.0.0.1) port 3000 (#0)
+> GET /healthz HTTP/1.1
+> Host: 127.0.0.1:3000
+> User-Agent: curl/7.81.0
+> Accept: */*
+> 
+* Mark bundle as not supporting multiuse
+* HTTP 1.0, assume close after body
+< HTTP/1.0 200 OK
+< Server: OCI-Linux-Lab/2.0 Python/3.10.12
+< Date: Thu, 08 Oct 2026 08:00:36 GMT
+< Content-Type: application/json; charset=utf-8
+< Content-Length: 68
+< X-Content-Type-Options: nosniff
+< 
+{ [68 bytes data]
+100    68  100    68    0     0  53543      0 --:--:-- --:--:-- --:--:-- 68000
+* Closing connection 0
 {"ok": true, "service": "oci-linux-lab", "version": "2.0.0-modular"}
 ==============================================================
 AUDIT COMPLETE
-
-REPORT:
-/tmp/oci-update-failure-audit-20261008-071300.txt
 ==============================================================
-root@hhrcfhqf-oracle-cloud:~# 
 
-Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 6.8.0-1054-oracle aarch64)
+报告：
+/tmp/oci-caddy-fetch-audit-20261008-080033.txt
 
- * Documentation:  https://help.ubuntu.com
- * Management:     https://landscape.canonical.com
- * Support:        https://ubuntu.com/pro
+本审计没有：
+  - 执行 Caddy 更新
+  - 修改 Caddyfile
+  - 修改 system_updates.py
+  - 修改 system-update.js
+  - 修改 server.py
+  - 重启 Caddy
+  - 重启 Panel
 
- System information as of Thu Oct  8 07:23:01 UTC 2026
-
-  System load:  0.0                Processes:               173
-  Usage of /:   4.4% of 193.63GB   Users logged in:         0
-  Memory usage: 8%                 IPv4 address for enp0s6: 10.0.0.251
-  Swap usage:   0%
-
- * Canonical Workshop gives developers fast, composable, reproducible, and
-   secure developer environments that are perfect for agentic workflows.
-
-   https://ubuntu.com/workshop
-
-Expanded Security Maintenance for Applications is not enabled.
-
-16 updates can be applied immediately.
-To see these additional updates run: apt list --upgradable
-
-3 additional security updates can be applied with ESM Apps.
-Learn more about enabling ESM Apps service at https://ubuntu.com/esm
-
-New release '24.04.5 LTS' available.
-Run 'do-release-upgrade' to upgrade to it.
-
-
-*** System restart required ***
-Last login: Thu Oct  8 07:01:59 2026 from 34.4.109.139
-ubuntu@hhrcfhqf-oracle-cloud:~$ sudo -i
-root@hhrcfhqf-oracle-cloud:~# echo '===== system_updates.py ====='
-grep -nEi \
-'curl|wget|systemd-run|sing-box|github|release|download|sha256|checksum|digest' \
-/opt/oci-zero-cost-lab/panel/system_updates.py
-
-echo
-echo '===== component/update functions ====='
-grep -nEi \
-'def .*update|def .*component|def check_component|singbox|caddy|ollama|apt' \
-/opt/oci-zero-cost-lab/panel/system_updates.py
-===== system_updates.py =====
-36:GITHUB_REPOS = {
-37:    "singbox": "SagerNet/sing-box",
-60:def _github_latest(repo):
-61:    url = f"https://api.github.com/repos/{repo}/releases/latest"
-66:            "Accept": "application/vnd.github+json",
-92:            "url": f"https://github.com/{repo}/releases/latest",
-153:        shutil.which("sing-box")
-154:        or "/usr/bin/sing-box"
-161:            "error": "sing-box 未安装或不存在",
-170:        r"(?:sing-box\s+)?version\s+v?([0-9][0-9A-Za-z.\-_]*)",
-191:                or f"sing-box version check failed: exit={rc}"
-340:            ". /etc/os-release 2>/dev/null; "
-441:        "release_url": latest_info.get("url", ""),
-478:        latest = _github_latest(
-479:            GITHUB_REPOS["singbox"]
-483:            "sing-box",
-491:        latest = _github_latest(
-492:            GITHUB_REPOS["caddy"]
-504:        latest = _github_latest(
-505:            GITHUB_REPOS["ollama"]
-590:                "systemd-run",
-603:                "systemd-run",
-620:                "curl -fsSL https://getcaddy.com "
-650:curl -fsSL https://ollama.com/install.sh | sh
-658:api=$(curl -fsS --max-time 8     http://127.0.0.1:11434/api/version 2>&1)
-
-===== component/update functions =====
-18:#   singbox
-19:#   caddy
-20:#   ollama
-21:#   apt
-37:    "singbox": "SagerNet/sing-box",
-38:    "caddy": "caddyserver/caddy",
-39:    "ollama": "ollama/ollama",
-150:def _singbox_version():
-197:def _caddy_version():
-200:        shutil.which("caddy")
-201:        or "/usr/bin/caddy"
-208:            "error": "Caddy 未安装或不存在",
-231:                or f"Caddy version check failed: exit={rc}"
-237:def _ollama_version():
-240:        shutil.which("ollama")
-241:        or "/usr/local/bin/ollama"
-244:    # Ollama 已经作为 systemd 服务运行时，
-248:    # 未定义导致的 Ollama CLI panic 影响。
-283:        api_error = "Ollama API 未返回版本号"
-288:    # 当前服务器的 Ollama systemd 用户为：
-289:    #   ollama
-291:    #   /usr/share/ollama
-296:            "HOME=/usr/share/ollama",
-297:            "USER=ollama",
-298:            "LOGNAME=ollama",
-306:        r"(?:ollama(?:\s+version)?\s*(?:is)?\s*)v?([0-9]+\.[0-9]+\.[0-9]+[^\s]*)",
-328:                or f"Ollama version check failed: exit={rc}"
-334:def _ubuntu_apt():
-350:            "apt-get",
-359:            "apt-get",
-362:            "APT::Get::Show-Upgraded=true",
-407:                or f"apt exit={update_rc}/{rc2}"
-413:def _component(name, current_info, latest_info):
-452:def check_component(component, force=False):
-457:        "singbox",
-458:        "caddy",
-459:        "ollama",
-460:        "apt",
-475:    if component == "singbox":
-477:        current = _singbox_version()
-479:            GITHUB_REPOS["singbox"]
-488:    elif component == "caddy":
-490:        current = _caddy_version()
-492:            GITHUB_REPOS["caddy"]
-496:            "Caddy",
-501:    elif component == "ollama":
-503:        current = _ollama_version()
-505:            GITHUB_REPOS["ollama"]
-509:            "Ollama",
-516:        data = _ubuntu_apt()
-523:    if component != "apt":
-554:        "singbox": check_component(
-555:            "singbox",
-558:        "apt": check_component(
-559:            "apt",
-562:        "caddy": check_component(
-563:            "caddy",
-566:        "ollama": check_component(
-567:            "ollama",
-582:def update_component(component):
-586:    if component == "singbox":
-594:                "/opt/oci-zero-cost-lab/scripts/singbox-update",
-599:    elif component == "apt":
-612:    elif component == "caddy":
-614:        # 使用 Caddy 官方推荐安装脚本。
-615:        # 不修改 Caddyfile。
-620:                "curl -fsSL https://getcaddy.com "
-622:                "systemctl restart caddy"
-627:    elif component == "ollama":
-629:        # 使用 Ollama 官方安装脚本。
-633:        # 非 0，但 Ollama 本体可能已经完成更新。
-637:        #   2. 主动重启 Ollama
-638:        #   3. 检查 Ollama API
-639:        #   4. 检查 Ollama CLI
-650:curl -fsSL https://ollama.com/install.sh | sh
-653:systemctl restart ollama
-661:cli=$(HOME=/usr/share/ollama USER=ollama LOGNAME=ollama     /usr/local/bin/ollama --version 2>&1)
-664:printf '\n[OCI-OLLAMA-UPDATE] install_rc=%s restart_rc=%s api_rc=%s cli_rc=%s\n'     "$install_rc" "$restart_rc" "$api_rc" "$cli_rc"
-666:printf '[OCI-OLLAMA-UPDATE] api=%s\n' "$api"
-667:printf '[OCI-OLLAMA-UPDATE] cli=%s\n' "$cli"
+==============================================================
