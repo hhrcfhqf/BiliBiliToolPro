@@ -1,3 +1,159 @@
+===== security.js =====
+1:import { ufwStart } from "./security-ufw.js";
+5:export async function render() {
+37:    ufwStart();
+
+===== singbox.js =====
+1:import { singboxNetworkStart } from "./singbox-network.js";
+7:export async function render() {
+141:   <button onclick="restartSB()">重启 sing-box</button>
+151:    singboxNetworkStart();
+154:async function restartSB(){
+312:window.restartSB = restartSB;
+
+===== security-ufw.js =====
+6: * 不保留跨页面 booted 状态。
+7: * Security 页面进入时由 security.js 显式调用 ufwStart()。
+11:function root() {
+12:    return document.querySelector("#app")
+241:export function ufwStart() {
+243:        const app = document.querySelector("#app");
+251:// V3.2.2-MOUNT-FIX: 禁止 import 时自动执行 ufwStart().
+
+===== singbox-network.js =====
+6: * 不保留跨页面 mounted 状态。
+13:    const main = document.querySelector("#app")
+24:    const area = document.querySelector("#app")
+65:export function singboxNetworkStart() {
+67:        const app = document.querySelector("#app");
+74:// V3.2.2-MOUNT-FIX: 禁止 import 时自动执行 singboxNetworkStart().
+
+[V3.2.2-FIX-ROBUST] 07. 严格验证修复结果
+[OK] 页面挂载隔离检查通过
+
+[V3.2.2-FIX-ROBUST] 08. JavaScript 语法检查
+[WARN] 未安装 node
+[WARN] 跳过 node --check
+
+[V3.2.2-FIX-ROBUST] 09. 确认后端核心文件未被修改
+[OK] untouched: /opt/oci-zero-cost-lab/panel/server.py
+[OK] untouched: /opt/oci-zero-cost-lab/panel/system_monitor.py
+[OK] untouched: /opt/oci-zero-cost-lab/panel/system_updates.py
+
+[V3.2.2-FIX-ROBUST] 10. 保存变更记录
+变更记录：/opt/oci-zero-cost-lab/backup/frontend-mount-fix-robust-20261008-070606/CHANGESET.txt
+
+[V3.2.2-FIX-ROBUST] 11. 重启唯一 Panel
+[OK] oci-linux-lab.service active
+
+[V3.2.2-FIX-ROBUST] 12. 检查 /healthz
+{"ok": true, "service": "oci-linux-lab", "version": "2.0.0-modular"}
+[OK] /healthz 正常
+
+[V3.2.2-FIX-ROBUST] 13. 检查四个前端资源
+/static/modules/security.js                                    HTTP 200
+/static/modules/singbox.js                                     HTTP 200
+/static/modules/security-ufw.js                                HTTP 200
+/static/modules/singbox-network.js                             HTTP 200
+
+[V3.2.2-FIX-ROBUST] 14. 修复完成
+
+==============================================================
+V3.2.2 Frontend Mount Fix - FINAL ROBUST
+==============================================================
+
+备份目录：
+  /opt/oci-zero-cost-lab/backup/frontend-mount-fix-robust-20261008-070606
+
+本次修改：
+  [OK] UFW 禁止 import 即执行
+  [OK] Sing-box Network 禁止 import 即执行
+  [OK] UFW 使用当前 #app
+  [OK] Network 使用当前 #app
+  [OK] UFW 删除跨页面 booted 状态
+  [OK] Network 删除跨页面 mounted 状态
+  [OK] Security 页面主动启动 UFW
+  [OK] Sing-box 页面主动启动 Network
+
+未修改：
+  server.py
+  system_monitor.py
+  system_updates.py
+  sing-box
+  Caddy
+  Ollama
+  Guard
+  systemd 架构
+
+浏览器强制刷新：
+  Cmd + Shift + R
+
+页面测试：
+  Overview
+    -> Security
+    -> Overview
+    -> Sing-box
+    -> Overview
+
+预期：
+  Overview  : 无 UFW / 无网络优化
+  Security  : 有 UFW
+  Sing-box  : 有网络优化
+  回 Overview: 两者消失
+
+==============================================================
+root@hhrcfhqf-oracle-cloud:~# cat >/home/ubuntu/oci-linux-lab-update-failure-audit.sh <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+OUT="/tmp/oci-update-failure-audit-$(date +%Y%m%d-%H%M%S).txt"
+PANEL="/opt/oci-zero-cost-lab/panel"
+
+exec > >(tee "$OUT") 2>&1
+
+echo "=============================================================="
+echo "OCI Linux Lab - UPDATE FAILURE AUDIT"
+echo "=============================================================="
+echo "TIME: $(date -Is)"
+echo
+
+echo "===== 01. SYSTEM ====="
+uname -a
+echo
+cat /etc/os-release | sed -n '1,12p'
+echo
+printf 'ARCH='
+uname -m
+echo
+
+echo "===== 02. SING-BOX ====="
+if command -v sing-box >/dev/null 2>&1; then
+    sing-box version || true
+    echo
+    command -v sing-box
+    ls -lh "$(command -v sing-box)" || true
+else
+    echo "sing-box command not found"
+fi
+echo
+
+echo "===== 03. CANDIDATE UPDATE FILES ====="
+find "$PANEL" -maxdepth 4 -type f \
+    \( -name 'system_updates.py' \
+    -o -name 'system-update.js' \
+    -o -name '*update*.py' \
+    -o -name '*update*.js' \) \
+    -print 2>/dev/null || true
+echo
+
+echo "===== 04. CURL / DOWNLOAD / RELEASE SEARCH ====="
+grep -RniE \
+    'curl|wget|releases/download|api\.github\.com|sha256|sha256sum|checksum|checksums|digest|sing-box' \
+    "$PANEL" \
+bash /home/ubuntu/oci-linux-lab-update-failure-audit.shit.sh========"' \l|sha256sum|checksum|digest' \
+==============================================================
+OCI Linux Lab - UPDATE FAILURE AUDIT
+==============================================================
 TIME: 2026-10-08T07:13:00+00:00
 
 ===== 01. SYSTEM =====
@@ -971,3 +1127,157 @@ AUDIT COMPLETE
 
 REPORT:
 /tmp/oci-update-failure-audit-20261008-071300.txt
+==============================================================
+root@hhrcfhqf-oracle-cloud:~# 
+
+Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 6.8.0-1054-oracle aarch64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Thu Oct  8 07:23:01 UTC 2026
+
+  System load:  0.0                Processes:               173
+  Usage of /:   4.4% of 193.63GB   Users logged in:         0
+  Memory usage: 8%                 IPv4 address for enp0s6: 10.0.0.251
+  Swap usage:   0%
+
+ * Canonical Workshop gives developers fast, composable, reproducible, and
+   secure developer environments that are perfect for agentic workflows.
+
+   https://ubuntu.com/workshop
+
+Expanded Security Maintenance for Applications is not enabled.
+
+16 updates can be applied immediately.
+To see these additional updates run: apt list --upgradable
+
+3 additional security updates can be applied with ESM Apps.
+Learn more about enabling ESM Apps service at https://ubuntu.com/esm
+
+New release '24.04.5 LTS' available.
+Run 'do-release-upgrade' to upgrade to it.
+
+
+*** System restart required ***
+Last login: Thu Oct  8 07:01:59 2026 from 34.4.109.139
+ubuntu@hhrcfhqf-oracle-cloud:~$ sudo -i
+root@hhrcfhqf-oracle-cloud:~# echo '===== system_updates.py ====='
+grep -nEi \
+'curl|wget|systemd-run|sing-box|github|release|download|sha256|checksum|digest' \
+/opt/oci-zero-cost-lab/panel/system_updates.py
+
+echo
+echo '===== component/update functions ====='
+grep -nEi \
+'def .*update|def .*component|def check_component|singbox|caddy|ollama|apt' \
+/opt/oci-zero-cost-lab/panel/system_updates.py
+===== system_updates.py =====
+36:GITHUB_REPOS = {
+37:    "singbox": "SagerNet/sing-box",
+60:def _github_latest(repo):
+61:    url = f"https://api.github.com/repos/{repo}/releases/latest"
+66:            "Accept": "application/vnd.github+json",
+92:            "url": f"https://github.com/{repo}/releases/latest",
+153:        shutil.which("sing-box")
+154:        or "/usr/bin/sing-box"
+161:            "error": "sing-box 未安装或不存在",
+170:        r"(?:sing-box\s+)?version\s+v?([0-9][0-9A-Za-z.\-_]*)",
+191:                or f"sing-box version check failed: exit={rc}"
+340:            ". /etc/os-release 2>/dev/null; "
+441:        "release_url": latest_info.get("url", ""),
+478:        latest = _github_latest(
+479:            GITHUB_REPOS["singbox"]
+483:            "sing-box",
+491:        latest = _github_latest(
+492:            GITHUB_REPOS["caddy"]
+504:        latest = _github_latest(
+505:            GITHUB_REPOS["ollama"]
+590:                "systemd-run",
+603:                "systemd-run",
+620:                "curl -fsSL https://getcaddy.com "
+650:curl -fsSL https://ollama.com/install.sh | sh
+658:api=$(curl -fsS --max-time 8     http://127.0.0.1:11434/api/version 2>&1)
+
+===== component/update functions =====
+18:#   singbox
+19:#   caddy
+20:#   ollama
+21:#   apt
+37:    "singbox": "SagerNet/sing-box",
+38:    "caddy": "caddyserver/caddy",
+39:    "ollama": "ollama/ollama",
+150:def _singbox_version():
+197:def _caddy_version():
+200:        shutil.which("caddy")
+201:        or "/usr/bin/caddy"
+208:            "error": "Caddy 未安装或不存在",
+231:                or f"Caddy version check failed: exit={rc}"
+237:def _ollama_version():
+240:        shutil.which("ollama")
+241:        or "/usr/local/bin/ollama"
+244:    # Ollama 已经作为 systemd 服务运行时，
+248:    # 未定义导致的 Ollama CLI panic 影响。
+283:        api_error = "Ollama API 未返回版本号"
+288:    # 当前服务器的 Ollama systemd 用户为：
+289:    #   ollama
+291:    #   /usr/share/ollama
+296:            "HOME=/usr/share/ollama",
+297:            "USER=ollama",
+298:            "LOGNAME=ollama",
+306:        r"(?:ollama(?:\s+version)?\s*(?:is)?\s*)v?([0-9]+\.[0-9]+\.[0-9]+[^\s]*)",
+328:                or f"Ollama version check failed: exit={rc}"
+334:def _ubuntu_apt():
+350:            "apt-get",
+359:            "apt-get",
+362:            "APT::Get::Show-Upgraded=true",
+407:                or f"apt exit={update_rc}/{rc2}"
+413:def _component(name, current_info, latest_info):
+452:def check_component(component, force=False):
+457:        "singbox",
+458:        "caddy",
+459:        "ollama",
+460:        "apt",
+475:    if component == "singbox":
+477:        current = _singbox_version()
+479:            GITHUB_REPOS["singbox"]
+488:    elif component == "caddy":
+490:        current = _caddy_version()
+492:            GITHUB_REPOS["caddy"]
+496:            "Caddy",
+501:    elif component == "ollama":
+503:        current = _ollama_version()
+505:            GITHUB_REPOS["ollama"]
+509:            "Ollama",
+516:        data = _ubuntu_apt()
+523:    if component != "apt":
+554:        "singbox": check_component(
+555:            "singbox",
+558:        "apt": check_component(
+559:            "apt",
+562:        "caddy": check_component(
+563:            "caddy",
+566:        "ollama": check_component(
+567:            "ollama",
+582:def update_component(component):
+586:    if component == "singbox":
+594:                "/opt/oci-zero-cost-lab/scripts/singbox-update",
+599:    elif component == "apt":
+612:    elif component == "caddy":
+614:        # 使用 Caddy 官方推荐安装脚本。
+615:        # 不修改 Caddyfile。
+620:                "curl -fsSL https://getcaddy.com "
+622:                "systemctl restart caddy"
+627:    elif component == "ollama":
+629:        # 使用 Ollama 官方安装脚本。
+633:        # 非 0，但 Ollama 本体可能已经完成更新。
+637:        #   2. 主动重启 Ollama
+638:        #   3. 检查 Ollama API
+639:        #   4. 检查 Ollama CLI
+650:curl -fsSL https://ollama.com/install.sh | sh
+653:systemctl restart ollama
+661:cli=$(HOME=/usr/share/ollama USER=ollama LOGNAME=ollama     /usr/local/bin/ollama --version 2>&1)
+664:printf '\n[OCI-OLLAMA-UPDATE] install_rc=%s restart_rc=%s api_rc=%s cli_rc=%s\n'     "$install_rc" "$restart_rc" "$api_rc" "$cli_rc"
+666:printf '[OCI-OLLAMA-UPDATE] api=%s\n' "$api"
+667:printf '[OCI-OLLAMA-UPDATE] cli=%s\n' "$cli"
