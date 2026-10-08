@@ -1,129 +1,7 @@
-root@hhrcfhqf-oracle-cloud:~# cat >/home/ubuntu/oci-linux-lab-caddy-fetch-audit.sh <<'EOF'
-#!/usr/bin/env bash
-set -Eeuo pipefail
-
-PANEL="/opt/oci-zero-cost-lab/panel"
-STATIC="$PANEL/static"
-MODULES="$STATIC/modules"
-
-SYSTEM_UPDATES="$PANEL/system_updates.py"
-SERVER="$PANEL/server.py"
-API="$STATIC/core/api.js"
-UPDATE_JS="$MODULES/system-update.js"
-CADDY_UPDATER="/opt/oci-zero-cost-lab/scripts/caddy-update"
-
-STAMP="$(date +%Y%m%d-%H%M%S)"
-OUT="/tmp/oci-caddy-fetch-audit-${STAMP}.txt"
-
-exec > >(tee "$OUT") 2>&1
-
-echo "=============================================================="
-echo "OCI Linux Lab - Caddy Failed to Fetch Audit"
-echo "=============================================================="
-echo "TIME: $(date -Is)"
-echo
-
-###############################################################################
-# 01. 基本状态
-###############################################################################
-
-echo "===== 01. BASIC ====="
-
-echo "Panel:"
-systemctl is-active oci-linux-lab.service || true
-
-echo
-echo "Caddy:"
-systemctl is-active caddy.service || true
-
-echo
-echo "Caddy version:"
-/usr/bin/caddy version || true
-
-echo
-echo "Panel health:"
-curl -fsS \
-    --max-time 10 \
-    http://127.0.0.1:3000/healthz \
-bash /home/ubuntu/oci-linux-lab-caddy-fetch-audit.shit.sh==========="##########t|Main process exited' \mctl restart|rollback' \
+CADDY FETCH CHAIN READ-ONLY AUDIT
 ==============================================================
-OCI Linux Lab - Caddy Failed to Fetch Audit
-==============================================================
-TIME: 2026-10-08T08:00:33+00:00
 
-===== 01. BASIC =====
-Panel:
-active
-
-Caddy:
-active
-
-Caddy version:
-v2.11.4 h1:XKxkMTgNSizEvKG6QHue6cAsFOteU2qA61w2tKkCWi0=
-
-Panel health:
-{"ok": true, "service": "oci-linux-lab", "version": "2.0.0-modular"}
-===== 02. SYSTEM_UPDATES CADDY BRANCH =====
-elif component == "caddy":
-
-        # Caddy 更新独立为模块 updater。
-        # 不修改 Caddyfile。
-        rc, out = _run(
-            [
-                "systemd-run",
-                "--wait",
-                "--pipe",
-                "--collect",
-                "/opt/oci-zero-cost-lab/scripts/caddy-update",
-            ],
-            timeout=900
-        )
-    
-
-===== 03. CADDY UPDATER =====
-Path:
-/opt/oci-zero-cost-lab/scripts/caddy-update
-
-SHA256:
-ed1800903df0dcf09b6a9eddf95f55b06b8acb0f439434a19e3915cea54ad63e  /opt/oci-zero-cost-lab/scripts/caddy-update
-
-Syntax:
-
-Key functions:
-10:API_URL="https://api.github.com/repos/${REPO}/releases/latest"
-42:for cmd in curl python3 sha256sum tar install systemctl; do
-204:    asset.get("browser_download_url") or ""
-207:digest = str(
-208:    asset.get("digest") or ""
-213:        f"Asset 缺少 browser_download_url: {asset_name}"
-218:    digest
-221:        f"Asset 缺少有效 SHA256 digest: "
-222:        f"{asset_name}; digest={digest!r}"
-230:        digest.split(":", 1)[1].lower(),
-248:# 08. validate official GitHub URL
-286:    sha256sum "$ARCHIVE" \
-334:#   caddy list-modules --skip-standard
-348:if ! "$TARGET_BIN" list-modules \
-349:    --skip-standard \
-414:# 14. validate current Caddyfile BEFORE install
-419:"$DOWNLOADED_BIN" validate \
-431:ROLLBACK_BIN="$BACKUP_ROOT/caddy-${STAMP}.before"
-435:    "$ROLLBACK_BIN"
-437:chmod 0755 "$ROLLBACK_BIN"
-439:info "旧 binary 已备份：$ROLLBACK_BIN"
-462:# 17. post-install validate
-465:"$TARGET_BIN" validate \
-477:systemctl restart "$CADDY_SERVICE"
-489:    echo "[ROLLBACK] Caddy 重启失败"
-493:        "$ROLLBACK_BIN" \
-498:    systemctl restart "$CADDY_SERVICE" || true
-509:# 20. final validate
-512:"$TARGET_BIN" validate \
-531:echo "Backup  : ${ROLLBACK_BIN}"
-
-===== 04. SYSTEM-UPDATE.JS =====
-
---- file ---
+===== 01. system-update.js =====
      1  import { api } from "../core/api.js";
      2  import { esc, showError } from "../core/ui.js";
      3
@@ -1105,7 +983,7 @@ Key functions:
    979
    980                      refreshAllFromCache();
 
-===== 05. CORE API.JS =====
+===== 02. api.js =====
      1  import { showError } from "./ui.js";
      2
      3  let CSRF = "";
@@ -1197,7 +1075,7 @@ Key functions:
     89      return CSRF;
     90  }
 
-===== 06. SERVER UPDATE ROUTES =====
+===== 03. server.py UPDATE REFERENCES =====
 5:from . import common, auth, system, singbox, nodes, security, logs, ai, learning, templates, certificates, system_monitor, system_updates
 128:                    "csrf": self.session().get("csrf","")
 132:                x["csrf"] = self.session().get("csrf","")
@@ -1216,9 +1094,9 @@ Key functions:
 215:                    system_updates.update_component(
 225:            elif p.path=="/api/security/ufw/delete": self.json(security._v32_ufw_delete(d.get("number"), bool(d.get("confirm_ssh"))))
 
---- surrounding update references ---
+===== 04. server.py SURROUNDING UPDATE CODE =====
 
---- lines 1-24 ---
+===== server.py lines 1-34 =====
     1 from __future__ import annotations
     2 import json, os, secrets, traceback, mimetypes
     3 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -1243,8 +1121,22 @@ Key functions:
    22     Serve authenticated panel static assets.
    23 
    24     Security:
+   25     - Only files under panel/static are allowed.
+   26     - Path traversal is rejected.
+   27     - Directory access is rejected.
+   28     """
+   29     rel = path[len("/static/"):]
+   30     if not rel:
+   31         return None
+   32 
+   33     # URL path -> filesystem path
+   34     candidate = os.path.abspath(
 
---- lines 138-165 ---
+===== server.py lines 134-175 =====
+  134             elif p.path=="/api/singbox":
+  135                 self.json(singbox.config())
+  136             elif p.path=="/api/nodes":
+  137                 self.json({"nodes":nodes.list_nodes()})
   138             elif p.path=="/api/subscription":
   139                 x = subscription_info()
   140                 x["raw_nodes"] = raw_nodes()
@@ -1273,8 +1165,22 @@ Key functions:
   163                         )
   164                     )
   165             elif p.path=="/api/learning/courses": self.json({"courses":learning.courses()})
+  166             elif p.path.startswith("/api/learning/lesson/"):
+  167                 cid=p.path.rsplit("/",1)[1]; c=learning.lesson(cid)
+  168                 self.json({"title":cid,"content":c or "not found"},200 if c else 404)
+  169             elif p.path=="/api/learning/progress": self.json(learning.progress())
+  170             elif p.path=="/api/services": self.json(system.services())
+  171             elif p.path=="/api/ai/status": self.json(ai.status())
+  172             elif p.path=="/api/logs": self.json({"log":logs.get(parse_qs(p.query).get("service",["oci-linux-lab"])[0])})
+  173             else:self.json({"error":"not found"},404)
+  174         except Exception as e:self.json({"error":str(e)},500)
+  175     def do_POST(self):
 
---- lines 139-166 ---
+===== server.py lines 135-176 =====
+  135                 self.json(singbox.config())
+  136             elif p.path=="/api/nodes":
+  137                 self.json({"nodes":nodes.list_nodes()})
+  138             elif p.path=="/api/subscription":
   139                 x = subscription_info()
   140                 x["raw_nodes"] = raw_nodes()
   141                 self.json(x)
@@ -1303,8 +1209,22 @@ Key functions:
   164                     )
   165             elif p.path=="/api/learning/courses": self.json({"courses":learning.courses()})
   166             elif p.path.startswith("/api/learning/lesson/"):
+  167                 cid=p.path.rsplit("/",1)[1]; c=learning.lesson(cid)
+  168                 self.json({"title":cid,"content":c or "not found"},200 if c else 404)
+  169             elif p.path=="/api/learning/progress": self.json(learning.progress())
+  170             elif p.path=="/api/services": self.json(system.services())
+  171             elif p.path=="/api/ai/status": self.json(ai.status())
+  172             elif p.path=="/api/logs": self.json({"log":logs.get(parse_qs(p.query).get("service",["oci-linux-lab"])[0])})
+  173             else:self.json({"error":"not found"},404)
+  174         except Exception as e:self.json({"error":str(e)},500)
+  175     def do_POST(self):
+  176         p=urlparse(self.path)
 
---- lines 146-173 ---
+===== server.py lines 142-183 =====
+  142             elif p.path=="/api/security": self.json(security.status())
+  143             elif p.path=="/api/security/ufw": self.json(security._v32_ufw_status())
+  144             elif p.path=="/api/singbox/network": self.json(network_opt.status())
+  145             elif p.path=="/api/certificates": self.json(certificates.status())
   146             elif p.path=="/api/system/monitor": self.json(system_monitor.collect())
   147             elif p.path=="/api/system/updates":
   148                 q = parse_qs(p.query)
@@ -1333,8 +1253,22 @@ Key functions:
   171             elif p.path=="/api/ai/status": self.json(ai.status())
   172             elif p.path=="/api/logs": self.json({"log":logs.get(parse_qs(p.query).get("service",["oci-linux-lab"])[0])})
   173             else:self.json({"error":"not found"},404)
+  174         except Exception as e:self.json({"error":str(e)},500)
+  175     def do_POST(self):
+  176         p=urlparse(self.path)
+  177         if p.path=="/login":
+  178             form=parse_qs(self.body_raw().decode(errors="replace"))
+  179             u=form.get("user",[""])[0]; pw=form.get("password",[""])[0]; code=form.get("totp",[""])[0]
+  180             if auth.password_ok(u,pw) and auth.verify_totp(code):
+  181                 sid,csrf=auth.new_session(); self.send_response(302); self.send_header("Location","/")
+  182                 self.send_sid(sid); self.end_headers(); return
+  183             self.page(templates.LOGIN.replace("</form>","</form><p>登录失败</p>").encode(),401); return
 
---- lines 153-180 ---
+===== server.py lines 149-190 =====
+  149                 component = q.get("component", [""])[0].strip().lower()
+  150                 force = q.get("refresh", ["0"])[0] == "1"
+  151 
+  152                 if component:
   153                     self.json(
   154                         system_updates.check_component(
   155                             component,
@@ -1363,8 +1297,22 @@ Key functions:
   178             form=parse_qs(self.body_raw().decode(errors="replace"))
   179             u=form.get("user",[""])[0]; pw=form.get("password",[""])[0]; code=form.get("totp",[""])[0]
   180             if auth.password_ok(u,pw) and auth.verify_totp(code):
+  181                 sid,csrf=auth.new_session(); self.send_response(302); self.send_header("Location","/")
+  182                 self.send_sid(sid); self.end_headers(); return
+  183             self.page(templates.LOGIN.replace("</form>","</form><p>登录失败</p>").encode(),401); return
+  184         if p.path=="/logout":
+  185             auth.logout(self.sid() or ""); self.send_response(204); self.end_headers(); return
+  186         s=self.need()
+  187         if not s:return
+  188         try:
+  189             d=self.body()
+  190             if d.get("csrf") != s.get("csrf"):
 
---- lines 188-215 ---
+===== server.py lines 184-225 =====
+  184         if p.path=="/logout":
+  185             auth.logout(self.sid() or ""); self.send_response(204); self.end_headers(); return
+  186         s=self.need()
+  187         if not s:return
   188         try:
   189             d=self.body()
   190             if d.get("csrf") != s.get("csrf"):
@@ -1393,8 +1341,22 @@ Key functions:
   213 
   214                 self.json(
   215                     system_updates.update_component(
+  216                         component
+  217                     )
+  218                 )
+  219 
+  220             elif p.path=="/api/singbox/restart": self.json(singbox.restart())
+  221             elif p.path=="/api/node/port": self.json(nodes.change_port(d.get("index"),d.get("port")))
+  222             elif p.path=="/api/certificates/issue": self.json(certificates.issue())
+  223             elif p.path=="/api/security/ufw/add": self.json(security._v32_ufw_add(d))
+  224             elif p.path=="/api/security/ufw/modify": self.json(security._v32_ufw_modify(d))
+  225             elif p.path=="/api/security/ufw/delete": self.json(security._v32_ufw_delete(d.get("number"), bool(d.get("confirm_ssh"))))
 
---- lines 191-218 ---
+===== server.py lines 187-228 =====
+  187         if not s:return
+  188         try:
+  189             d=self.body()
+  190             if d.get("csrf") != s.get("csrf"):
   191                 self.json({"error":"csrf validation failed"},403); return
   192             if p.path in ("/api/ai/chat","/api/learning/complete") and d.get("confirm") in (None,""):
   193                 if p.path=="/api/ai/chat": self.json(ai.chat(d.get("messages",[])))
@@ -1423,8 +1385,22 @@ Key functions:
   216                         component
   217                     )
   218                 )
+  219 
+  220             elif p.path=="/api/singbox/restart": self.json(singbox.restart())
+  221             elif p.path=="/api/node/port": self.json(nodes.change_port(d.get("index"),d.get("port")))
+  222             elif p.path=="/api/certificates/issue": self.json(certificates.issue())
+  223             elif p.path=="/api/security/ufw/add": self.json(security._v32_ufw_add(d))
+  224             elif p.path=="/api/security/ufw/modify": self.json(security._v32_ufw_modify(d))
+  225             elif p.path=="/api/security/ufw/delete": self.json(security._v32_ufw_delete(d.get("number"), bool(d.get("confirm_ssh"))))
+  226             elif p.path=="/api/security/ufw/enable": self.json(security._v32_ufw_enable())
+  227             elif p.path=="/api/security/ufw/disable": self.json(security._v32_ufw_disable())
+  228             elif p.path=="/api/action":
 
---- lines 207-234 ---
+===== server.py lines 203-244 =====
+  203                     "singbox",
+  204                     "caddy",
+  205                     "ollama",
+  206                     "apt",
   207                 ):
   208                     self.json(
   209                         {"error": "unknown update component"},
@@ -1453,45 +1429,383 @@ Key functions:
   232                 else:self.json({"error":"unknown action"},400)
   233             else:self.json({"error":"not found"},404)
   234         except Exception as e:self.json({"error":str(e)},500)
+  235     def body_raw(self):
+  236         n=int(self.headers.get("Content-Length","0")); return self.rfile.read(n)
+  237 
+  238 def subscription_info():
+  239     d=common.parse_env(); tok=d.get("SUB_TOKEN") or d.get("SUBSCRIPTION_TOKEN") or d.get("CLASH_TOKEN") or d.get("PANEL_SUB_TOKEN")
+  240     return {"host":common.public_host(),"token_present":bool(tok),"url":f"/sub/{tok}" if tok else ""}
+  241 
+  242 def yamlq(s):
+  243     return "'" + str(s).replace("'","''") + "'"
+  244 
 
-===== 07. ALL UPDATE FETCH CALLS =====
-/opt/oci-zero-cost-lab/panel/static/modules/actions.js:3:export async function confirmAction(action) {
-/opt/oci-zero-cost-lab/panel/static/modules/actions.js:60:window.confirmAction = confirmAction;
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:12: * /api/system/monitor
-/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:458:                "/api/system/monitor"
-/opt/oci-zero-cost-lab/panel/static/modules/security-ufw.js:182:            await api("/api/security/ufw/add", {method:"POST", body:JSON.stringify({...payload,confirm:"CONFIRM"})});
-/opt/oci-zero-cost-lab/panel/static/modules/security-ufw.js:192:            const r = await api("/api/security/ufw/modify", {method:"POST", body:JSON.stringify({...payload,number:n,confirm:"CONFIRM",confirm_ssh:confirmSsh})});
-/opt/oci-zero-cost-lab/panel/static/modules/security-ufw.js:216:        const x = await api("/api/security/ufw/delete", {method:"POST",body:JSON.stringify({number,confirm:"CONFIRM",confirm_ssh:confirmSsh})});
-/opt/oci-zero-cost-lab/panel/static/modules/security-ufw.js:231:    try { await api("/api/security/ufw/enable", {method:"POST",body:JSON.stringify({confirm:"CONFIRM"})}); await load(); }
-/opt/oci-zero-cost-lab/panel/static/modules/security-ufw.js:237:    try { await api("/api/security/ufw/disable", {method:"POST",body:JSON.stringify({confirm:"CONFIRM"})}); await load(); }
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:5:import { confirmAction } from "./actions.js";
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:144:   onclick="confirmAction('singbox-update')">
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:298: * /api/system/monitor
-/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:301: * /api/system/updates
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:358: * 不再存在 /api/system/updates 的总检查调用。
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:367:        "/api/system/updates?component=" +
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:374:    return await api(url);
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:427: *   /api/system/updates
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:695:            await api(
-/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:696:                "/api/system/update",
-/opt/oci-zero-cost-lab/panel/static/core/api.js:32:        const r = await fetch(url, opt);
+===== 05. ACTIONS.JS =====
+     1  import { api } from "../core/api.js";
+     2
+     3  export async function confirmAction(action) {
+     4      let message = "确认执行此操作？";
+     5
+     6      if (action === "singbox-update") {
+     7          message = "确认更新 sing-box？";
+     8      }
+     9
+    10      if (action === "system-update") {
+    11          message = "确认更新 Ubuntu / APT？";
+    12      }
+    13
+    14      if (!window.confirm(message)) {
+    15          return;
+    16      }
+    17
+    18      const x = await api("/api/action", {
+    19          method: "POST",
+    20          body: JSON.stringify({
+    21              action,
+    22              confirm: "CONFIRM"
+    23          })
+    24      });
+    25
+    26      if (x) {
+    27          /*
+    28           * 不再整页 reload。
+    29           *
+    30           * 系统更新页面由 system-update.js
+    31           * 自己重新读取当前模块。
+    32           */
+    33          if (
+    34              action === "singbox-update" ||
+    35              action === "system-update"
+    36          ) {
+    37              if (
+    38                  typeof window.checkSystemUpdates ===
+    39                  "function"
+    40              ) {
+    41                  await window.checkSystemUpdates(true);
+    42              }
+    43
+    44              return;
+    45          }
+    46      }
+    47  }
+    48
+    49  export async function logout() {
+    50      await api("/api/action", {
+    51          method: "POST",
+    52          body: JSON.stringify({
+    53              action: "logout"
+    54          })
+    55      });
+    56
+    57      location = "/login";
+    58  }
+    59
+    60  window.confirmAction = confirmAction;
+    61  window.logout = logout;
 
-===== 08. BACKEND UPDATE REFERENCES =====
-/opt/oci-zero-cost-lab/panel/server.py:5:from . import common, auth, system, singbox, nodes, security, logs, ai, learning, templates, certificates, system_monitor, system_updates
-/opt/oci-zero-cost-lab/panel/server.py:146:            elif p.path=="/api/system/monitor": self.json(system_monitor.collect())
-/opt/oci-zero-cost-lab/panel/server.py:147:            elif p.path=="/api/system/updates":
-/opt/oci-zero-cost-lab/panel/server.py:154:                        system_updates.check_component(
-/opt/oci-zero-cost-lab/panel/server.py:161:                        system_updates.collect(
-/opt/oci-zero-cost-lab/panel/server.py:199:            elif p.path=="/api/system/update":
-/opt/oci-zero-cost-lab/panel/server.py:215:                    system_updates.update_component(
-/opt/oci-zero-cost-lab/panel/server.py:230:                if a=="singbox-update": self.json(singbox.update())
-/opt/oci-zero-cost-lab/panel/singbox.py:21:                "/opt/oci-zero-cost-lab/scripts/singbox-update"],timeout=900)
-/opt/oci-zero-cost-lab/panel/system_updates.py:28:# 手动更新必须由 server.py 经过显式确认后调用 update_component()
-/opt/oci-zero-cost-lab/panel/system_updates.py:582:def update_component(component):
-/opt/oci-zero-cost-lab/panel/system_updates.py:594:                "/opt/oci-zero-cost-lab/scripts/singbox-update",
-/opt/oci-zero-cost-lab/panel/system_updates.py:622:                "/opt/oci-zero-cost-lab/scripts/caddy-update",
+===== 06. CURRENT PANEL LOG =====
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     self.finish_request(request, client_address)
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     self.RequestHandlerClass(request, client_address, self)
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     self.handle()
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     self.handle_one_request()
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     method()
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     except Exception as e:self.json({"error":str(e)},500)
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     self.flush_headers()
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     self.wfile.write(b"".join(self._headers_buffer))
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]: Exception occurred during processing of request from ('127.0.0.1', 53776)
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]: Traceback (most recent call last):
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 214, in do_POST
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.json(
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]: During handling of the above exception, another exception occurred:
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]: Traceback (most recent call last):
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.finish_request(request, client_address)
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.RequestHandlerClass(request, client_address, self)
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.handle()
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.handle_one_request()
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     method()
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     except Exception as e:self.json({"error":str(e)},500)
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.flush_headers()
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.wfile.write(b"".join(self._headers_buffer))
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]: Exception occurred during processing of request from ('127.0.0.1', 53788)
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]: Traceback (most recent call last):
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 214, in do_POST
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.json(
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]: During handling of the above exception, another exception occurred:
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]: Traceback (most recent call last):
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.finish_request(request, client_address)
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.RequestHandlerClass(request, client_address, self)
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.handle()
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.handle_one_request()
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     method()
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     except Exception as e:self.json({"error":str(e)},500)
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.flush_headers()
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.wfile.write(b"".join(self._headers_buffer))
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]: Exception occurred during processing of request from ('127.0.0.1', 48074)
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]: Traceback (most recent call last):
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 214, in do_POST
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.json(
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]: During handling of the above exception, another exception occurred:
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]: Traceback (most recent call last):
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.finish_request(request, client_address)
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.RequestHandlerClass(request, client_address, self)
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.handle()
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.handle_one_request()
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     method()
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     except Exception as e:self.json({"error":str(e)},500)
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.flush_headers()
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.wfile.write(b"".join(self._headers_buffer))
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]: Exception occurred during processing of request from ('127.0.0.1', 48080)
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]: Traceback (most recent call last):
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 214, in do_POST
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.json(
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]: During handling of the above exception, another exception occurred:
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]: Traceback (most recent call last):
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.finish_request(request, client_address)
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.RequestHandlerClass(request, client_address, self)
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.handle()
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.handle_one_request()
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     method()
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     except Exception as e:self.json({"error":str(e)},500)
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.flush_headers()
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.wfile.write(b"".join(self._headers_buffer))
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
+Oct 08 07:48:57 hhrcfhqf-oracle-cloud systemd[1]: Stopping OCI Linux Lab Panel...
+Oct 08 07:48:57 hhrcfhqf-oracle-cloud systemd[1]: oci-linux-lab.service: Deactivated successfully.
+Oct 08 07:48:57 hhrcfhqf-oracle-cloud systemd[1]: Stopped OCI Linux Lab Panel.
+Oct 08 07:48:57 hhrcfhqf-oracle-cloud systemd[1]: oci-linux-lab.service: Consumed 22.895s CPU time.
+Oct 08 07:48:57 hhrcfhqf-oracle-cloud systemd[1]: Started OCI Linux Lab Panel.
+Oct 08 07:48:57 hhrcfhqf-oracle-cloud python3[523016]: OCI Linux Lab listening on 127.0.0.1:3000
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]: ----------------------------------------
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]: Exception occurred during processing of request from ('127.0.0.1', 38072)
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]: Traceback (most recent call last):
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 214, in do_POST
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.json(
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self._sock.sendall(b)
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]: During handling of the above exception, another exception occurred:
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]: Traceback (most recent call last):
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.finish_request(request, client_address)
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.RequestHandlerClass(request, client_address, self)
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.handle()
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.handle_one_request()
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     method()
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     except Exception as e:self.json({"error":str(e)},500)
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.flush_headers()
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.wfile.write(b"".join(self._headers_buffer))
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self._sock.sendall(b)
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]: ----------------------------------------
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]: ----------------------------------------
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]: Exception occurred during processing of request from ('127.0.0.1', 38086)
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]: Traceback (most recent call last):
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 214, in do_POST
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.json(
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self._sock.sendall(b)
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]: During handling of the above exception, another exception occurred:
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]: Traceback (most recent call last):
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.finish_request(request, client_address)
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.RequestHandlerClass(request, client_address, self)
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.handle()
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.handle_one_request()
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     method()
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     except Exception as e:self.json({"error":str(e)},500)
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.flush_headers()
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.wfile.write(b"".join(self._headers_buffer))
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self._sock.sendall(b)
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]: ----------------------------------------
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]: ----------------------------------------
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]: Exception occurred during processing of request from ('127.0.0.1', 43396)
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]: Traceback (most recent call last):
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 214, in do_POST
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.json(
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self._sock.sendall(b)
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]: During handling of the above exception, another exception occurred:
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]: Traceback (most recent call last):
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.finish_request(request, client_address)
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.RequestHandlerClass(request, client_address, self)
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.handle()
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.handle_one_request()
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     method()
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     except Exception as e:self.json({"error":str(e)},500)
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.flush_headers()
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.wfile.write(b"".join(self._headers_buffer))
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self._sock.sendall(b)
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]: ----------------------------------------
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]: ----------------------------------------
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]: Exception occurred during processing of request from ('127.0.0.1', 33178)
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]: Traceback (most recent call last):
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 214, in do_POST
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.json(
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self._sock.sendall(b)
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]: During handling of the above exception, another exception occurred:
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]: Traceback (most recent call last):
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.finish_request(request, client_address)
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.RequestHandlerClass(request, client_address, self)
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.handle()
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.handle_one_request()
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     method()
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     except Exception as e:self.json({"error":str(e)},500)
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.end_headers(); self.wfile.write(b)
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.flush_headers()
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.wfile.write(b"".join(self._headers_buffer))
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self._sock.sendall(b)
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]: BrokenPipeError: [Errno 32] Broken pipe
+Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]: ----------------------------------------
 
-===== 09. RECENT TRANSIENT UNITS =====
+===== 07. TRANSIENT UPDATE UNITS =====
 Oct 08 07:45:11 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
 Oct 08 07:45:11 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
 Oct 08 07:45:17 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
@@ -1529,412 +1843,10 @@ Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1312.service: Consumed 1.
 Oct 08 07:58:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1313.service: Deactivated successfully.
 Oct 08 07:58:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1313.service: Consumed 1.040s CPU time.
 
-===== 10. CADDY JOURNAL =====
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"warn","ts":1791445639.1029756,"logger":"http.auto_https","msg":"server is listening only on the HTTP port, so no automatic HTTPS will be applied to this server","server_name":"srv1","http_port":80}
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.1030512,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x50737032fb00"}
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.1033459,"logger":"http","msg":"enabling HTTP/3 listener","addr":":2053"}
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.103505,"logger":"http.log","msg":"server running","name":"srv0","protocols":["h1","h2","h3"]}
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"warn","ts":1791445639.1035705,"logger":"http","msg":"HTTP/2 skipped because it requires TLS","network":"tcp","addr":":80"}
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"warn","ts":1791445639.1035776,"logger":"http","msg":"HTTP/3 skipped because it requires TLS","network":"tcp","addr":":80"}
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.1035798,"logger":"http.log","msg":"server running","name":"srv1","protocols":["h1","h2","h3"]}
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.1035833,"logger":"http","msg":"enabling automatic TLS certificate management","domains":["panel.hhrcfhqfv.qzz.io"]}
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.1038928,"msg":"autosaved config (load with --resume flag)","file":"/var/lib/caddy/.config/caddy/autosave.json"}
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.1039486,"msg":"serving initial configuration"}
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud systemd[1]: Started Caddy.
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.108896,"logger":"tls","msg":"storage cleaning happened too recently; skipping for now","storage":"FileStorage:/var/lib/caddy/.local/share/caddy","instance":"8c0517f1-1cb2-4341-be1a-63ee789ca3e2","try_again":1791532039.1088948,"try_again_in":86399.99999976}
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.1089718,"logger":"tls","msg":"finished cleaning storage units"}
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud systemd[1]: Stopping Caddy...
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.5205088,"msg":"shutting down apps, then terminating","signal":"SIGTERM"}
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"warn","ts":1791445639.5207245,"msg":"exiting; byeee!! 👋","signal":"SIGTERM"}
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud caddy[522954]: {"level":"info","ts":1791445639.5207639,"logger":"http","msg":"servers shutting down with eternal grace period"}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: State 'stop-sigterm' timed out. Killing.
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522954 (caddy) with signal SIGKILL.
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522956 (caddy) with signal SIGKILL.
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522957 (caddy) with signal SIGKILL.
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522959 (caddy) with signal SIGKILL.
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522960 (caddy) with signal SIGKILL.
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522961 (caddy) with signal SIGKILL.
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: Stopped Caddy.
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: Starting Caddy...
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: caddy.HomeDir=/var/lib/caddy
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: caddy.AppDataDir=/var/lib/caddy/.local/share/caddy
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: caddy.AppConfigDir=/var/lib/caddy/.config/caddy
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: caddy.ConfigAutosavePath=/var/lib/caddy/.config/caddy/autosave.json
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: caddy.Version=v2.11.4 h1:XKxkMTgNSizEvKG6QHue6cAsFOteU2qA61w2tKkCWi0=
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: runtime.GOOS=linux
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: runtime.GOARCH=arm64
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: runtime.Compiler=gc
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: runtime.NumCPU=2
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: runtime.GOMAXPROCS=2
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: runtime.Version=go1.26.3
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: os.Getwd=/
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: LANG=C.UTF-8
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: NOTIFY_SOCKET=/run/systemd/notify
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: HOME=/var/lib/caddy
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: LOGNAME=caddy
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: USER=caddy
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: INVOCATION_ID=d84ae199cc7a4161ad9dce7b6483be91
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: JOURNAL_STREAM=8:4431331
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: SYSTEMD_EXEC_PID=522972
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.607449,"msg":"maxprocs: Leaving GOMAXPROCS=2: CPU quota undefined"}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.607496,"msg":"GOMEMLIMIT is updated","GOMEMLIMIT":11261310566,"previous":9223372036854775807}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.607506,"msg":"using config from file","file":"/etc/caddy/Caddyfile"}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6075087,"msg":"adapted config to JSON","adapter":"caddyfile"}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"warn","ts":1791445644.607511,"msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","adapter":"caddyfile","file":"/etc/caddy/Caddyfile","line":2}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6081538,"logger":"admin","msg":"admin endpoint started","address":"localhost:2019","enforce_origin":false,"origins":["//[::1]:2019","//127.0.0.1:2019","//localhost:2019"]}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6083179,"logger":"http.auto_https","msg":"server is listening only on the HTTPS port but has no TLS connection policies; adding one to enable TLS","server_name":"srv0","https_port":2053}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6083586,"logger":"http.auto_https","msg":"enabling automatic HTTP->HTTPS redirects","server_name":"srv0"}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"warn","ts":1791445644.608372,"logger":"http.auto_https","msg":"server is listening only on the HTTP port, so no automatic HTTPS will be applied to this server","server_name":"srv1","http_port":80}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6092544,"logger":"http","msg":"enabling HTTP/3 listener","addr":":2053"}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6099691,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x36e7c40e980"}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6101015,"logger":"http.log","msg":"server running","name":"srv0","protocols":["h1","h2","h3"]}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"warn","ts":1791445644.6101544,"logger":"http","msg":"HTTP/2 skipped because it requires TLS","network":"tcp","addr":":80"}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"warn","ts":1791445644.61016,"logger":"http","msg":"HTTP/3 skipped because it requires TLS","network":"tcp","addr":":80"}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6101677,"logger":"http.log","msg":"server running","name":"srv1","protocols":["h1","h2","h3"]}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6101713,"logger":"http","msg":"enabling automatic TLS certificate management","domains":["panel.hhrcfhqfv.qzz.io"]}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.612288,"msg":"autosaved config (load with --resume flag)","file":"/var/lib/caddy/.config/caddy/autosave.json"}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: Started Caddy.
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6136146,"msg":"serving initial configuration"}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6174493,"logger":"tls","msg":"storage cleaning happened too recently; skipping for now","storage":"FileStorage:/var/lib/caddy/.local/share/caddy","instance":"8c0517f1-1cb2-4341-be1a-63ee789ca3e2","try_again":1791532044.617448,"try_again_in":86399.99999976}
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791445644.6175156,"logger":"tls","msg":"finished cleaning storage units"}
-Oct 08 07:56:33 hhrcfhqf-oracle-cloud systemd[1]: Stopping Caddy...
-Oct 08 07:56:33 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791446193.5737822,"msg":"shutting down apps, then terminating","signal":"SIGTERM"}
-Oct 08 07:56:33 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"warn","ts":1791446193.5738652,"msg":"exiting; byeee!! 👋","signal":"SIGTERM"}
-Oct 08 07:56:33 hhrcfhqf-oracle-cloud caddy[522972]: {"level":"info","ts":1791446193.5739021,"logger":"http","msg":"servers shutting down with eternal grace period"}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: State 'stop-sigterm' timed out. Killing.
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522972 (caddy) with signal SIGKILL.
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522974 (caddy) with signal SIGKILL.
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522976 (caddy) with signal SIGKILL.
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522977 (caddy) with signal SIGKILL.
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522978 (caddy) with signal SIGKILL.
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522979 (caddy) with signal SIGKILL.
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 522980 (caddy) with signal SIGKILL.
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: Stopped Caddy.
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: Starting Caddy...
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: caddy.HomeDir=/var/lib/caddy
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: caddy.AppDataDir=/var/lib/caddy/.local/share/caddy
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: caddy.AppConfigDir=/var/lib/caddy/.config/caddy
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: caddy.ConfigAutosavePath=/var/lib/caddy/.config/caddy/autosave.json
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: caddy.Version=v2.11.7 h1:yj0Y4fYZGPkSvibBJ1sTWE33xC0fxztVyXEW5iIdUT4=
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: runtime.GOOS=linux
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: runtime.GOARCH=arm64
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: runtime.Compiler=gc
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: runtime.NumCPU=2
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: runtime.GOMAXPROCS=2
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: runtime.Version=go1.26.8
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: os.Getwd=/
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: LANG=C.UTF-8
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: NOTIFY_SOCKET=/run/systemd/notify
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: HOME=/var/lib/caddy
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: LOGNAME=caddy
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: USER=caddy
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: INVOCATION_ID=1d10a188429445d0a0b77ff239d61e25
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: JOURNAL_STREAM=8:4437955
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: SYSTEMD_EXEC_PID=524016
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8584685,"msg":"maxprocs: Leaving GOMAXPROCS=2: CPU quota undefined"}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8584833,"msg":"GOMEMLIMIT is updated","GOMEMLIMIT":11261310566,"previous":9223372036854775807}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8584864,"msg":"using config from file","file":"/etc/caddy/Caddyfile"}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8584893,"msg":"adapted config to JSON","adapter":"caddyfile"}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"warn","ts":1791446198.8584914,"msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","adapter":"caddyfile","file":"/etc/caddy/Caddyfile","line":2}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8590763,"logger":"admin","msg":"admin endpoint started","address":"localhost:2019","enforce_origin":false,"origins":["//localhost:2019","//[::1]:2019","//127.0.0.1:2019"]}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.859245,"logger":"http.auto_https","msg":"server is listening only on the HTTPS port but has no TLS connection policies; adding one to enable TLS","server_name":"srv0","https_port":2053}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.859265,"logger":"http.auto_https","msg":"enabling automatic HTTP->HTTPS redirects","server_name":"srv0"}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"warn","ts":1791446198.859276,"logger":"http.auto_https","msg":"server is listening only on the HTTP port, so no automatic HTTPS will be applied to this server","server_name":"srv1","http_port":80}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.859642,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x1b2613073080"}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8597252,"logger":"http","msg":"enabling HTTP/3 listener","addr":":2053"}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8602977,"logger":"http.log","msg":"server running","name":"srv0","protocols":["h1","h2","h3"]}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"warn","ts":1791446198.8603532,"logger":"http","msg":"HTTP/2 skipped because it requires TLS","network":"tcp","addr":":80"}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"warn","ts":1791446198.8603587,"logger":"http","msg":"HTTP/3 skipped because it requires TLS","network":"tcp","addr":":80"}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8603609,"logger":"http.log","msg":"server running","name":"srv1","protocols":["h1","h2","h3"]}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8603637,"logger":"http","msg":"enabling automatic TLS certificate management","domains":["panel.hhrcfhqfv.qzz.io"]}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8611474,"msg":"autosaved config (load with --resume flag)","file":"/var/lib/caddy/.config/caddy/autosave.json"}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: Started Caddy.
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8612301,"msg":"serving initial configuration"}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.865097,"logger":"tls","msg":"storage cleaning happened too recently; skipping for now","storage":"FileStorage:/var/lib/caddy/.local/share/caddy","instance":"8c0517f1-1cb2-4341-be1a-63ee789ca3e2","try_again":1791532598.8650954,"try_again_in":86399.99999976}
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446198.8653798,"logger":"tls","msg":"finished cleaning storage units"}
-Oct 08 07:56:40 hhrcfhqf-oracle-cloud systemd[1]: Stopping Caddy...
-Oct 08 07:56:40 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446200.5476782,"msg":"shutting down apps, then terminating","signal":"SIGTERM"}
-Oct 08 07:56:40 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"warn","ts":1791446200.5477707,"msg":"exiting; byeee!! 👋","signal":"SIGTERM"}
-Oct 08 07:56:40 hhrcfhqf-oracle-cloud caddy[524016]: {"level":"info","ts":1791446200.5477855,"logger":"http","msg":"servers shutting down with eternal grace period"}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: State 'stop-sigterm' timed out. Killing.
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524016 (caddy) with signal SIGKILL.
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524018 (caddy) with signal SIGKILL.
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524019 (caddy) with signal SIGKILL.
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524020 (caddy) with signal SIGKILL.
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524021 (caddy) with signal SIGKILL.
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524022 (caddy) with signal SIGKILL.
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: Stopped Caddy.
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: Starting Caddy...
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: caddy.HomeDir=/var/lib/caddy
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: caddy.AppDataDir=/var/lib/caddy/.local/share/caddy
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: caddy.AppConfigDir=/var/lib/caddy/.config/caddy
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: caddy.ConfigAutosavePath=/var/lib/caddy/.config/caddy/autosave.json
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: caddy.Version=v2.11.4 h1:XKxkMTgNSizEvKG6QHue6cAsFOteU2qA61w2tKkCWi0=
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: runtime.GOOS=linux
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: runtime.GOARCH=arm64
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: runtime.Compiler=gc
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: runtime.NumCPU=2
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: runtime.GOMAXPROCS=2
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: runtime.Version=go1.26.3
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: os.Getwd=/
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: LANG=C.UTF-8
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: NOTIFY_SOCKET=/run/systemd/notify
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: HOME=/var/lib/caddy
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: LOGNAME=caddy
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: USER=caddy
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: INVOCATION_ID=8cce3ebd30af445baaa470b65d3502ff
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: JOURNAL_STREAM=8:4438596
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: SYSTEMD_EXEC_PID=524083
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.639418,"msg":"maxprocs: Leaving GOMAXPROCS=2: CPU quota undefined"}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6394336,"msg":"GOMEMLIMIT is updated","GOMEMLIMIT":11261310566,"previous":9223372036854775807}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6394382,"msg":"using config from file","file":"/etc/caddy/Caddyfile"}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6394405,"msg":"adapted config to JSON","adapter":"caddyfile"}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"warn","ts":1791446205.6394427,"msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","adapter":"caddyfile","file":"/etc/caddy/Caddyfile","line":2}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6401792,"logger":"admin","msg":"admin endpoint started","address":"localhost:2019","enforce_origin":false,"origins":["//localhost:2019","//[::1]:2019","//127.0.0.1:2019"]}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.640335,"logger":"http.auto_https","msg":"server is listening only on the HTTPS port but has no TLS connection policies; adding one to enable TLS","server_name":"srv0","https_port":2053}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6403549,"logger":"http.auto_https","msg":"enabling automatic HTTP->HTTPS redirects","server_name":"srv0"}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"warn","ts":1791446205.6403694,"logger":"http.auto_https","msg":"server is listening only on the HTTP port, so no automatic HTTPS will be applied to this server","server_name":"srv1","http_port":80}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.640623,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x25b09c28bc80"}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6410537,"logger":"http","msg":"enabling HTTP/3 listener","addr":":2053"}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6418164,"logger":"http.log","msg":"server running","name":"srv0","protocols":["h1","h2","h3"]}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"warn","ts":1791446205.642016,"logger":"http","msg":"HTTP/2 skipped because it requires TLS","network":"tcp","addr":":80"}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"warn","ts":1791446205.6420293,"logger":"http","msg":"HTTP/3 skipped because it requires TLS","network":"tcp","addr":":80"}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6420333,"logger":"http.log","msg":"server running","name":"srv1","protocols":["h1","h2","h3"]}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6420372,"logger":"http","msg":"enabling automatic TLS certificate management","domains":["panel.hhrcfhqfv.qzz.io"]}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6425052,"msg":"autosaved config (load with --resume flag)","file":"/var/lib/caddy/.config/caddy/autosave.json"}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: Started Caddy.
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6464005,"msg":"serving initial configuration"}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.6508567,"logger":"tls","msg":"storage cleaning happened too recently; skipping for now","storage":"FileStorage:/var/lib/caddy/.local/share/caddy","instance":"8c0517f1-1cb2-4341-be1a-63ee789ca3e2","try_again":1791532605.6508555,"try_again_in":86399.99999956}
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446205.651056,"logger":"tls","msg":"finished cleaning storage units"}
-Oct 08 07:58:33 hhrcfhqf-oracle-cloud systemd[1]: Stopping Caddy...
-Oct 08 07:58:33 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446313.450513,"msg":"shutting down apps, then terminating","signal":"SIGTERM"}
-Oct 08 07:58:33 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"warn","ts":1791446313.4506404,"msg":"exiting; byeee!! 👋","signal":"SIGTERM"}
-Oct 08 07:58:33 hhrcfhqf-oracle-cloud caddy[524083]: {"level":"info","ts":1791446313.4506965,"logger":"http","msg":"servers shutting down with eternal grace period"}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: State 'stop-sigterm' timed out. Killing.
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524083 (caddy) with signal SIGKILL.
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524084 (caddy) with signal SIGKILL.
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524085 (caddy) with signal SIGKILL.
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524086 (caddy) with signal SIGKILL.
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524087 (caddy) with signal SIGKILL.
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524088 (caddy) with signal SIGKILL.
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524089 (caddy) with signal SIGKILL.
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: Stopped Caddy.
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: Starting Caddy...
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: caddy.HomeDir=/var/lib/caddy
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: caddy.AppDataDir=/var/lib/caddy/.local/share/caddy
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: caddy.AppConfigDir=/var/lib/caddy/.config/caddy
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: caddy.ConfigAutosavePath=/var/lib/caddy/.config/caddy/autosave.json
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: caddy.Version=v2.11.7 h1:yj0Y4fYZGPkSvibBJ1sTWE33xC0fxztVyXEW5iIdUT4=
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: runtime.GOOS=linux
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: runtime.GOARCH=arm64
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: runtime.Compiler=gc
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: runtime.NumCPU=2
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: runtime.GOMAXPROCS=2
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: runtime.Version=go1.26.8
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: os.Getwd=/
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: LANG=C.UTF-8
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: NOTIFY_SOCKET=/run/systemd/notify
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: HOME=/var/lib/caddy
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: LOGNAME=caddy
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: USER=caddy
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: INVOCATION_ID=638c258cf11142a3a2e462d980ebc045
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: JOURNAL_STREAM=8:4441284
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: SYSTEMD_EXEC_PID=524351
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.608054,"msg":"maxprocs: Leaving GOMAXPROCS=2: CPU quota undefined"}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.608078,"msg":"GOMEMLIMIT is updated","GOMEMLIMIT":11261310566,"previous":9223372036854775807}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.608087,"msg":"using config from file","file":"/etc/caddy/Caddyfile"}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6080904,"msg":"adapted config to JSON","adapter":"caddyfile"}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"warn","ts":1791446318.608093,"msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","adapter":"caddyfile","file":"/etc/caddy/Caddyfile","line":2}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6094866,"logger":"admin","msg":"admin endpoint started","address":"localhost:2019","enforce_origin":false,"origins":["//[::1]:2019","//127.0.0.1:2019","//localhost:2019"]}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6096833,"logger":"http.auto_https","msg":"server is listening only on the HTTPS port but has no TLS connection policies; adding one to enable TLS","server_name":"srv0","https_port":2053}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.609704,"logger":"http.auto_https","msg":"enabling automatic HTTP->HTTPS redirects","server_name":"srv0"}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"warn","ts":1791446318.6097176,"logger":"http.auto_https","msg":"server is listening only on the HTTP port, so no automatic HTTPS will be applied to this server","server_name":"srv1","http_port":80}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.610459,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x2932ee240700"}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6106055,"logger":"http","msg":"enabling HTTP/3 listener","addr":":2053"}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6111107,"logger":"http.log","msg":"server running","name":"srv0","protocols":["h1","h2","h3"]}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"warn","ts":1791446318.6111574,"logger":"http","msg":"HTTP/2 skipped because it requires TLS","network":"tcp","addr":":80"}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"warn","ts":1791446318.6111624,"logger":"http","msg":"HTTP/3 skipped because it requires TLS","network":"tcp","addr":":80"}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.611165,"logger":"http.log","msg":"server running","name":"srv1","protocols":["h1","h2","h3"]}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6111681,"logger":"http","msg":"enabling automatic TLS certificate management","domains":["panel.hhrcfhqfv.qzz.io"]}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6113102,"msg":"autosaved config (load with --resume flag)","file":"/var/lib/caddy/.config/caddy/autosave.json"}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.611361,"msg":"serving initial configuration"}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: Started Caddy.
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6184983,"logger":"tls","msg":"storage cleaning happened too recently; skipping for now","storage":"FileStorage:/var/lib/caddy/.local/share/caddy","instance":"8c0517f1-1cb2-4341-be1a-63ee789ca3e2","try_again":1791532718.6184964,"try_again_in":86399.99999976}
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446318.6189077,"logger":"tls","msg":"finished cleaning storage units"}
-Oct 08 07:58:40 hhrcfhqf-oracle-cloud systemd[1]: Stopping Caddy...
-Oct 08 07:58:40 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446320.308433,"msg":"shutting down apps, then terminating","signal":"SIGTERM"}
-Oct 08 07:58:40 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"warn","ts":1791446320.30859,"msg":"exiting; byeee!! 👋","signal":"SIGTERM"}
-Oct 08 07:58:40 hhrcfhqf-oracle-cloud caddy[524351]: {"level":"info","ts":1791446320.308609,"logger":"http","msg":"servers shutting down with eternal grace period"}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: State 'stop-sigterm' timed out. Killing.
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524351 (caddy) with signal SIGKILL.
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524353 (caddy) with signal SIGKILL.
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524355 (caddy) with signal SIGKILL.
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524356 (caddy) with signal SIGKILL.
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524357 (caddy) with signal SIGKILL.
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Killing process 524358 (caddy) with signal SIGKILL.
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: Stopped Caddy.
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: Starting Caddy...
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: caddy.HomeDir=/var/lib/caddy
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: caddy.AppDataDir=/var/lib/caddy/.local/share/caddy
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: caddy.AppConfigDir=/var/lib/caddy/.config/caddy
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: caddy.ConfigAutosavePath=/var/lib/caddy/.config/caddy/autosave.json
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: caddy.Version=v2.11.4 h1:XKxkMTgNSizEvKG6QHue6cAsFOteU2qA61w2tKkCWi0=
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: runtime.GOOS=linux
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: runtime.GOARCH=arm64
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: runtime.Compiler=gc
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: runtime.NumCPU=2
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: runtime.GOMAXPROCS=2
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: runtime.Version=go1.26.3
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: os.Getwd=/
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: LANG=C.UTF-8
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: NOTIFY_SOCKET=/run/systemd/notify
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: HOME=/var/lib/caddy
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: LOGNAME=caddy
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: USER=caddy
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: INVOCATION_ID=7c83a94661914030bc57d6acec715a89
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: JOURNAL_STREAM=8:4441382
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: SYSTEMD_EXEC_PID=524422
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6442025,"msg":"maxprocs: Leaving GOMAXPROCS=2: CPU quota undefined"}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.644226,"msg":"GOMEMLIMIT is updated","GOMEMLIMIT":11261310566,"previous":9223372036854775807}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.644231,"msg":"using config from file","file":"/etc/caddy/Caddyfile"}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.644234,"msg":"adapted config to JSON","adapter":"caddyfile"}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"warn","ts":1791446325.644236,"msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","adapter":"caddyfile","file":"/etc/caddy/Caddyfile","line":2}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6447723,"logger":"admin","msg":"admin endpoint started","address":"localhost:2019","enforce_origin":false,"origins":["//localhost:2019","//[::1]:2019","//127.0.0.1:2019"]}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6449053,"logger":"http.auto_https","msg":"server is listening only on the HTTPS port but has no TLS connection policies; adding one to enable TLS","server_name":"srv0","https_port":2053}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6449184,"logger":"http.auto_https","msg":"enabling automatic HTTP->HTTPS redirects","server_name":"srv0"}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"warn","ts":1791446325.6449301,"logger":"http.auto_https","msg":"server is listening only on the HTTP port, so no automatic HTTPS will be applied to this server","server_name":"srv1","http_port":80}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6454325,"logger":"http","msg":"enabling HTTP/3 listener","addr":":2053"}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6457138,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x48b8ddb2bc00"}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6462996,"logger":"http.log","msg":"server running","name":"srv0","protocols":["h1","h2","h3"]}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"warn","ts":1791446325.646348,"logger":"http","msg":"HTTP/2 skipped because it requires TLS","network":"tcp","addr":":80"}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"warn","ts":1791446325.646353,"logger":"http","msg":"HTTP/3 skipped because it requires TLS","network":"tcp","addr":":80"}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.646355,"logger":"http.log","msg":"server running","name":"srv1","protocols":["h1","h2","h3"]}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.646358,"logger":"http","msg":"enabling automatic TLS certificate management","domains":["panel.hhrcfhqfv.qzz.io"]}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6470597,"msg":"autosaved config (load with --resume flag)","file":"/var/lib/caddy/.config/caddy/autosave.json"}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6471364,"msg":"serving initial configuration"}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: Started Caddy.
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6540098,"logger":"tls","msg":"storage cleaning happened too recently; skipping for now","storage":"FileStorage:/var/lib/caddy/.local/share/caddy","instance":"8c0517f1-1cb2-4341-be1a-63ee789ca3e2","try_again":1791532725.6540084,"try_again_in":86399.99999972}
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud caddy[524422]: {"level":"info","ts":1791446325.6541057,"logger":"tls","msg":"finished cleaning storage units"}
+===== 08. CURRENT CADDY =====
+v2.11.4 h1:XKxkMTgNSizEvKG6QHue6cAsFOteU2qA61w2tKkCWi0=
+active
 
-===== 11. CADDY UPDATE TRANSIENT UNITS =====
-
------ run-u1296.service -----
-Oct 08 07:08:30 hhrcfhqf-oracle-cloud systemd[1]: Started /usr/bin/python3 /opt/oci-zero-cost-lab/scripts/ufw-manager status.
-Oct 08 07:08:30 hhrcfhqf-oracle-cloud systemd[1]: run-u1296.service: Deactivated successfully.
-
------ run-u1297.service -----
-Oct 08 07:08:44 hhrcfhqf-oracle-cloud systemd[1]: Started /usr/bin/python3 /opt/oci-zero-cost-lab/scripts/ufw-manager status.
-Oct 08 07:08:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1297.service: Deactivated successfully.
-
------ run-u1298.service -----
-Oct 08 07:08:49 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/singbox-update.
-Oct 08 07:08:50 hhrcfhqf-oracle-cloud systemd[1]: run-u1298.service: Main process exited, code=exited, status=22/n/a
-Oct 08 07:08:50 hhrcfhqf-oracle-cloud systemd[1]: run-u1298.service: Failed with result 'exit-code'.
-
------ run-u1304.service -----
-Oct 08 07:35:58 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/singbox-update.
-Oct 08 07:36:02 hhrcfhqf-oracle-cloud systemd[1]: run-u1304.service: Deactivated successfully.
-Oct 08 07:36:02 hhrcfhqf-oracle-cloud systemd[1]: run-u1304.service: Consumed 1.634s CPU time.
-
------ run-u1308.service -----
-Oct 08 07:49:46 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
-Oct 08 07:49:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1308.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
-Oct 08 07:49:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1308.service: Failed with result 'exit-code'.
-
------ run-u1309.service -----
-Oct 08 07:52:42 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
-Oct 08 07:52:43 hhrcfhqf-oracle-cloud systemd[1]: run-u1309.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
-Oct 08 07:52:43 hhrcfhqf-oracle-cloud systemd[1]: run-u1309.service: Failed with result 'exit-code'.
-
------ run-u1310.service -----
-Oct 08 07:56:32 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1310.service: Main process exited, code=exited, status=1/FAILURE
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1310.service: Failed with result 'exit-code'.
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1310.service: Consumed 1.057s CPU time.
-
------ run-u1311.service -----
-Oct 08 07:56:39 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1311.service: Deactivated successfully.
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1311.service: Consumed 1.050s CPU time.
-
------ run-u1312.service -----
-Oct 08 07:58:32 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1312.service: Main process exited, code=exited, status=1/FAILURE
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1312.service: Failed with result 'exit-code'.
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1312.service: Consumed 1.061s CPU time.
-
------ run-u1313.service -----
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1313.service: Deactivated successfully.
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1313.service: Consumed 1.040s CPU time.
-
------ run-u548.service -----
-Sep 19 10:28:04 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/node-port-change 2 12345.
-Sep 19 10:28:06 hhrcfhqf-oracle-cloud systemd[1]: run-u548.service: Deactivated successfully.
-
------ run-u956.service -----
-Sep 29 05:25:43 hhrcfhqf-oracle-cloud systemd[1]: Started /usr/bin/python3 /opt/oci-zero-cost-lab/scripts/ufw-manager status.
-Sep 29 05:25:43 hhrcfhqf-oracle-cloud systemd[1]: run-u956.service: Deactivated successfully.
-
------ run-u957.service -----
-Sep 29 05:26:30 hhrcfhqf-oracle-cloud systemd[1]: Started /usr/bin/python3 /opt/oci-zero-cost-lab/scripts/ufw-manager status.
-Sep 29 05:26:30 hhrcfhqf-oracle-cloud systemd[1]: run-u957.service: Deactivated successfully.
-
-===== 12. LOCAL PANEL PORT =====
-LISTEN 0      5          127.0.0.1:3000       0.0.0.0:*    users:(("python3",pid=523016,fd=3))                      
-
-===== 13. CURL LOCAL HEALTH =====
-*   Trying 127.0.0.1:3000...
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0* Connected to 127.0.0.1 (127.0.0.1) port 3000 (#0)
-> GET /healthz HTTP/1.1
-> Host: 127.0.0.1:3000
-> User-Agent: curl/7.81.0
-> Accept: */*
-> 
-* Mark bundle as not supporting multiuse
-* HTTP 1.0, assume close after body
-< HTTP/1.0 200 OK
-< Server: OCI-Linux-Lab/2.0 Python/3.10.12
-< Date: Thu, 08 Oct 2026 08:00:36 GMT
-< Content-Type: application/json; charset=utf-8
-< Content-Length: 68
-< X-Content-Type-Options: nosniff
-< 
-{ [68 bytes data]
-100    68  100    68    0     0  53543      0 --:--:-- --:--:-- --:--:-- 68000
-* Closing connection 0
+===== 09. PANEL HEALTH =====
 {"ok": true, "service": "oci-linux-lab", "version": "2.0.0-modular"}
-==============================================================
-AUDIT COMPLETE
-==============================================================
-
-报告：
-/tmp/oci-caddy-fetch-audit-20261008-080033.txt
-
-本审计没有：
-  - 执行 Caddy 更新
-  - 修改 Caddyfile
-  - 修改 system_updates.py
-  - 修改 system-update.js
-  - 修改 server.py
-  - 重启 Caddy
-  - 重启 Panel
-
 ==============================================================
