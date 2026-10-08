@@ -1,776 +1,973 @@
-root@hhrcfhqf-oracle-cloud:~# echo '===== APP ====='
-nl -ba /opt/oci-zero-cost-lab/panel/static/app.js 2>/dev/null || \
-nl -ba /opt/oci-zero-cost-lab/panel/static/core/router.js 2>/dev/null
+TIME: 2026-10-08T07:13:00+00:00
 
-echo
-echo '===== SECURITY ====='
-nl -ba /opt/oci-zero-cost-lab/panel/static/modules/security.js
+===== 01. SYSTEM =====
+Linux hhrcfhqf-oracle-cloud 6.8.0-1054-oracle #55~22.04.1-Ubuntu SMP Tue May 26 22:18:18 UTC 2026 aarch64 aarch64 aarch64 GNU/Linux
 
-echo
-echo '===== SINGBOX ====='
-nl -ba /opt/oci-zero-cost-lab/panel/static/modules/singbox.js
+PRETTY_NAME="Ubuntu 22.04.5 LTS"
+NAME="Ubuntu"
+VERSION_ID="22.04"
+VERSION="22.04.5 LTS (Jammy Jellyfish)"
+VERSION_CODENAME=jammy
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=jammy
 
-echo
-echo '===== UFW MODULE ====='
-nl -ba /opt/oci-zero-cost-lab/panel/static/modules/security-ufw.js
+ARCH=aarch64
 
-echo
-echo '===== NETWORK MODULE ====='
-nl -ba /opt/oci-zero-cost-lab/panel/static/modules/singbox-network.js
-===== APP =====
-     1  import { initSession } from "./core/api.js";
-     2  import { navigate, registerRoute } from "./core/router.js";
-     3  import { logout } from "./modules/actions.js";
-     4
-     5  import { render as renderOverview }
-     6      from "./modules/overview.js";
-     7
-     8  import { render as renderAI }
-     9      from "./modules/ai.js";
+===== 02. SING-BOX =====
+sing-box version 1.14.1
+
+Environment: go1.26.8 linux/arm64
+Tags: with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,with_cloudflared,with_naive_outbound,with_usbip,with_openvpn,with_openconnect,badlinkname,tfogo_checklinkname0,with_musl
+Revision: 1ac1a339cb1223e9c70eae14c44411c75033c02d
+CGO: enabled
+
+/usr/bin/sing-box
+-rwxr-xr-x 1 root root 82M Sep 14 17:43 /usr/bin/sing-box
+
+===== 03. CANDIDATE UPDATE FILES =====
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js
+/opt/oci-zero-cost-lab/panel/system_updates.py
+
+===== 04. CURL / DOWNLOAD / RELEASE SEARCH =====
+/opt/oci-zero-cost-lab/panel/common.py:8:SINGBOX=Path("/etc/sing-box/config.json")
+/opt/oci-zero-cost-lab/panel/common.py:104:      "services":{x:service_active(x) for x in ("sing-box","caddy","oci-linux-lab","ollama","oci-free-guard.timer")}
+/opt/oci-zero-cost-lab/panel/server.py:105:            if not real or not secrets.compare_digest(tok,real): self.page(b"not found",404); return
+/opt/oci-zero-cost-lab/panel/auth.py:26:        dig=hmac.new(key,msg,hashlib.sha1).digest()
+/opt/oci-zero-cost-lab/panel/auth.py:29:        if hmac.compare_digest(f"{n%1000000:06d}",str(code).strip()):
+/opt/oci-zero-cost-lab/panel/auth.py:40:    return bool(u and p and secrets.compare_digest(user,u) and secrets.compare_digest(pw,p))
+/opt/oci-zero-cost-lab/panel/singbox.py:12:    rc,ver=run(["sing-box","version"])
+/opt/oci-zero-cost-lab/panel/singbox.py:13:    rc2,chk=run(["sing-box","check","-c",str(SINGBOX)],timeout=30)
+/opt/oci-zero-cost-lab/panel/singbox.py:15:            "active":service_active("sing-box"),"nodes":nodes}
+/opt/oci-zero-cost-lab/panel/singbox.py:17:    rc,out=run(["systemctl","restart","sing-box"],timeout=30)
+/opt/oci-zero-cost-lab/panel/system_monitor.py:7:    "sing-box": "sing-box.service",
+/opt/oci-zero-cost-lab/panel/system_monitor.py:14:    "sing-box": "sing-box.service",
+/opt/oci-zero-cost-lab/panel/templates.py:248:<div class="nav" data-p="singbox">📦 <span>sing-box</span></div>
+/opt/oci-zero-cost-lab/panel/nodes.py:92:            "active": service_active("sing-box"),
+/opt/oci-zero-cost-lab/panel/certificates.py:8:CERT_DIR = Path("/etc/sing-box/certs")
+/opt/oci-zero-cost-lab/panel/certificates.py:154:    # sing-box normally runs as root; keep directory accessible.
+/opt/oci-zero-cost-lab/panel/certificates.py:158:        "sing-box",
+/opt/oci-zero-cost-lab/panel/certificates.py:167:            "error": "证书已复制，但 sing-box 配置检查失败",
+/opt/oci-zero-cost-lab/panel/certificates.py:172:        ["systemctl", "restart", "sing-box"],
+/opt/oci-zero-cost-lab/panel/logs.py:2:ALLOWED={"oci-linux-lab","sing-box","caddy","ollama"}
+/opt/oci-zero-cost-lab/panel/static/modules/logs.js:14:    <option>sing-box</option>
+/opt/oci-zero-cost-lab/panel/static/modules/nodes.js:21:   数据直接读取 /etc/sing-box/config.json，不重新生成密钥。
+/opt/oci-zero-cost-lab/panel/static/modules/nodes.js:28:    '<div class="card">没有发现节点。请检查 sing-box 配置。</div>'
+/opt/oci-zero-cost-lab/panel/static/modules/nodes.js:164: ${n.active?'sing-box active':'sing-box inactive'}
+/opt/oci-zero-cost-lab/panel/static/modules/nodes.js:205:  '？\\n\\n系统会备份配置、检查配置并重启 sing-box。'
+/opt/oci-zero-cost-lab/panel/static/modules/actions.js:7:        message = "确认更新 sing-box？";
+/opt/oci-zero-cost-lab/panel/static/modules/ai.js:12:   可以直接询问 Linux、systemd、网络、sing-box 等问题。
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:37: *   "sing-box": {
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:60:        key: "sing-box",
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:61:        label: "sing-box",
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:62:        unit: "sing-box.service"
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:89: * ["sing-box", "Caddy"]
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:133: *   "sing-box": {
+/opt/oci-zero-cost-lab/panel/static/modules/singbox-network.js:7: * Sing-box 页面进入时由 singbox.js 显式调用。
+/opt/oci-zero-cost-lab/panel/static/modules/singbox-network.js:56:              本模块只移动/展示状态，不修改当前 BBR、TUIC 或 sing-box 配置。
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:15:    * sing-box version 原始输出包含完整构建信息。
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:21:   let shortVersion = "sing-box";
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:27:       if(value.startsWith("sing-box version")){
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:66:   <h2>sing-box</h2>
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:141:   <button onclick="restartSB()">重启 sing-box</button>
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:156: if(!confirm('确定重启 sing-box？'))return;
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:248:  '确定申请/续期 sing-box TLS 证书？\\n\\n'+
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:302: *   -> sing-box version / apt updates / update errors
+/opt/oci-zero-cost-lab/panel/static/modules/subscription.js:122:     订阅始终读取当前 sing-box 配置。
+/opt/oci-zero-cost-lab/panel/static/modules/subscription.js:132:     以下 URI 直接从当前 sing-box 节点配置生成。
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:13:        title: "sing-box",
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:28:    singbox: "sing-box",
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:446:            "📦 sing-box"
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:878:            "sing-box",
+/opt/oci-zero-cost-lab/panel/network_opt.py:8:SINGBOX = Path("/etc/sing-box/config.json")
+/opt/oci-zero-cost-lab/panel/ai.py:19:默认只提供只读诊断和学习建议。涉及修改 SSH、UFW、防火墙、sing-box、系统服务、软件包或删除数据时，
+/opt/oci-zero-cost-lab/panel/oci_free.py:13:SINGBOX = Path("/etc/sing-box/config.json")
+/opt/oci-zero-cost-lab/panel/oci_free.py:67:        cmd = ["curl", "-fsS", "--max-time", "4"]
+/opt/oci-zero-cost-lab/panel/oci_free.py:90:        cmd = ["curl", "-fsS", "--max-time", "4"]
+/opt/oci-zero-cost-lab/panel/system.py:11:    return {x:service_active(x) for x in ("sing-box","caddy","oci-linux-lab","ollama","oci-free-guard.timer")}
+/opt/oci-zero-cost-lab/panel/raw_subscription.py:7:SINGBOX = Path("/etc/sing-box/config.json")
+/opt/oci-zero-cost-lab/panel/system_updates.py:37:    "singbox": "SagerNet/sing-box",
+/opt/oci-zero-cost-lab/panel/system_updates.py:61:    url = f"https://api.github.com/repos/{repo}/releases/latest"
+/opt/oci-zero-cost-lab/panel/system_updates.py:153:        shutil.which("sing-box")
+/opt/oci-zero-cost-lab/panel/system_updates.py:154:        or "/usr/bin/sing-box"
+/opt/oci-zero-cost-lab/panel/system_updates.py:161:            "error": "sing-box 未安装或不存在",
+/opt/oci-zero-cost-lab/panel/system_updates.py:170:        r"(?:sing-box\s+)?version\s+v?([0-9][0-9A-Za-z.\-_]*)",
+/opt/oci-zero-cost-lab/panel/system_updates.py:191:                or f"sing-box version check failed: exit={rc}"
+/opt/oci-zero-cost-lab/panel/system_updates.py:483:            "sing-box",
+/opt/oci-zero-cost-lab/panel/system_updates.py:620:                "curl -fsSL https://getcaddy.com "
+/opt/oci-zero-cost-lab/panel/system_updates.py:650:curl -fsSL https://ollama.com/install.sh | sh
+/opt/oci-zero-cost-lab/panel/system_updates.py:658:api=$(curl -fsS --max-time 8     http://127.0.0.1:11434/api/version 2>&1)
+
+===== 05. SYSTEM_UPDATES.PY =====
+     1  from __future__ import annotations
+     2
+     3  import json
+     4  import os
+     5  import re
+     6  import shutil
+     7  import subprocess
+     8  import time
+     9  import urllib.request
     10
-    11  import { render as renderLinux }
-    12      from "./modules/linux.js";
-    13
-    14  import { render as renderSingbox }
-    15      from "./modules/singbox.js?v=20260919-2";
-    16
-    17  import { render as renderNodes }
-    18      from "./modules/nodes.js";
-    19
-    20  import { render as renderSubscription }
-    21      from "./modules/subscription.js";
-    22
-    23  import { render as renderSystem }
-    24      from "./modules/system.js";
-    25
-    26  import { render as renderSecurity }
-    27      from "./modules/security.js";
-    28
-    29  import { render as renderLogs }
-    30      from "./modules/logs.js";
-    31
+    11
+    12  # ============================================================================
+    13  # OCI Linux Lab
+    14  # 独立软件更新模块
+    15  #
+    16  # 每个组件完全独立检查：
+    17  #
+    18  #   singbox
+    19  #   caddy
+    20  #   ollama
+    21  #   apt
+    22  #
+    23  # 默认：
+    24  #   24 小时缓存
+    25  #   只检查
+    26  #   不自动更新
+    27  #
+    28  # 手动更新必须由 server.py 经过显式确认后调用 update_component()
+    29  # ============================================================================
+    30
+    31  CACHE_SECONDS = 86400
     32
-    33  /*
-    34   * 路由只负责：
-    35   *
-    36   * route -> module.render()
-    37   *
-    38   * 不再：
-    39   *
-    40   * route -> show() -> 巨型 show() -> if(p === ...)
-    41   */
-    42
-    43  registerRoute("overview", renderOverview);
-    44  registerRoute("ai", renderAI);
-    45  registerRoute("linux", renderLinux);
-    46  registerRoute("singbox", renderSingbox);
-    47  registerRoute("nodes", renderNodes);
-    48  registerRoute("sub", renderSubscription);
-    49  registerRoute("system", renderSystem);
-    50  registerRoute("security", renderSecurity);
-    51  registerRoute("logs", renderLogs);
-    52
-    53
-    54  /*
-    55   * 保留 show() 兼容入口。
-    56   *
-    57   * 这是为了兼容原有功能中的：
-    58   *
-    59   *   navigate("linux")
-    60   *   navigate("nodes")
-    61   *
-    62   * 等操作。
-    63   *
-    64   * 页面 render 本身不再通过 show() 实现。
-    65   */
-    66  window.show = navigate;
-    67  window.logout = logout;
-    68
-    69
-    70  document.addEventListener("DOMContentLoaded", async () => {
-    71
-    72      document.querySelectorAll(".nav").forEach(nav => {
-    73
-    74          nav.addEventListener("click", event => {
-    75
-    76              event.preventDefault();
-    77
-    78              const page = nav.dataset.p;
-    79
-    80              if (page) {
-    81                  navigate(page);
-    82              }
-    83          });
-    84
-    85      });
-    86
-    87      await initSession();
-    88
-    89      await navigate("overview");
-    90  });
-
-===== SECURITY =====
-     1  import { ufwStart } from "./security-ufw.js";
-     2  import { api } from "../core/api.js";
-     3  import { esc } from "../core/ui.js";
-     4
-     5  export async function render() {
-     6      const a = document.querySelector("#app");
-     7
-     8     const x=await api('/api/security');
-     9
-    10     if(!x)return;
-    11
-    12     a.innerHTML=`
-    13     <h2>安全</h2>
-    14
-    15     <div class="card">
-    16
-    17     <p>BBR：${esc(x.bbr)}</p>
-    18
-    19     <p>
-    20     OCI Guard：
-    21     <span class="${x.guard?'ok':'bad'}">
-    22     ${x.guard?'active':'inactive'}
-    23     </span>
-    24     </p>
-    25
-    26     <p>rpcbind：${esc(x.rpcbind)}</p>
-    27
-    28     <h3>监听</h3>
-    29     <pre>${esc(x.listeners)}</pre>
-    30
-    31     <h3>UFW</h3>
-    32     <pre>${esc(x.ufw)}</pre>
-    33
-    34     </div>
-    35     `;
-    36
-    37  }
-
-===== SINGBOX =====
-     1  import { singboxNetworkStart } from "./singbox-network.js";
-     2  import { api } from "../core/api.js";
-     3  import { esc } from "../core/ui.js";
-     4  import { navigate } from "../core/router.js";
-     5  import { confirmAction } from "./actions.js";
-     6
-     7  export async function render() {
-     8      const a = document.querySelector("#app");
-     9
-    10     const x=await api('/api/singbox');
-    11
-    12     if(!x)return;
-    13
-    14     /*
-    15      * sing-box version 原始输出包含完整构建信息。
-    16      * 页面这里只显示简洁的版本和运行环境简介。
-    17      */
-    18     const versionRaw = String(x.version || "");
-    19     const versionLines = versionRaw.split("\n");
-    20
-    21     let shortVersion = "sing-box";
-    22     let environment = "";
-    23
-    24     for(const line of versionLines){
-    25         const value = line.trim();
-    26
-    27         if(value.startsWith("sing-box version")){
-    28             shortVersion = value;
-    29         }
-    30
-    31         if(value.startsWith("Environment:")){
-    32             const env = value
-    33                 .substring("Environment:".length)
-    34                 .trim();
+    33  _CACHE = {}
+    34  _CACHE_TIME = {}
     35
-    36             const envParts = env.split(/\s+/);
-    37             const parts = [];
-    38
-    39             for(const item of envParts){
-    40                 if(item.startsWith("go")){
-    41                     parts.push(item);
-    42                 }
-    43
-    44                 if(item === "linux/arm64"){
-    45                     parts.push("Linux ARM64");
-    46                 }
-    47             }
-    48
-    49             environment = parts.join(" · ");
-    50         }
-    51
-    52         if(value.startsWith("CGO:")){
-    53             const cgo = value
-    54                 .substring("CGO:".length)
-    55                 .trim();
-    56
-    57             if(cgo){
-    58                 environment +=
-    59                     (environment ? " · " : "") +
-    60                     "CGO " + cgo;
-    61             }
-    62         }
-    63     }
-    64
-    65     a.innerHTML=`
-    66     <h2>sing-box</h2>
-    67
-    68     <div class="card">
-    69
-    70     <h3>
-    71     ${esc(shortVersion)}
-    72     </h3>
-    73
-    74     ${
-    75         environment
-    76         ? `<p class="muted">${esc(environment)}</p>`
-    77         : ""
-    78     }
-    79
-    80     <p>
-    81     配置检查：
-    82     <span class="${x.check_ok?'ok':'bad'}">
-    83     ${x.check_ok?'通过':'失败'}
-    84     </span>
-    85     </p>
-    86
-    87     <p>
-    88     服务：
-    89     <span class="${x.active?'ok':'bad'}">
-    90     ${x.active?'active':'inactive'}
-    91     </span>
-    92     </p>
-    93
-    94     <h3>当前节点</h3>
-    95
-    96     ${
-    97      (x.nodes||[]).map(
-    98       n=>`
-    99       <div class="detail">
-   100       <b>${esc(n.tag)}</b>
-   101       ${esc(n.type)}
-   102       · ${esc(n.port)}
-   103       </div>
-   104       `
-   105      ).join('')
-   106     }
-   107
-   108     <h3>配置检查输出</h3>
-   109
-   110     <pre>${esc(x.check)}</pre>
-   111
-   112     <h3>TLS / 证书</h3>
-   113
-   114     <div class="card">
-   115
-   116      <div id="cert-status">
-   117       正在读取证书状态……
-   118      </div>
-   119
-   120      <button
-   121       class="gray"
-   122       onclick="loadCertificateStatus()"
-   123      >
-   124       检查证书
-   125      </button>
-   126
-   127      <button
-   128       class="green"
-   129       onclick="issueCertificate()"
-   130      >
-   131       申请 / 续期证书
-   132      </button>
-   133
-   134      <p class="muted">
-   135       VLESS Reality 不需要此证书。
-   136       此证书用于标准 TLS 节点。
-   137      </p>
-   138
-   139     </div>
-   140
-   141     <button onclick="restartSB()">重启 sing-box</button>
-   142
-   143     <button class="warn"
-   144     onclick="confirmAction('singbox-update')">
-   145     更新（需确认）
-   146     </button>
-   147
-   148     </div>
-   149     `;
-   150
-   151  }
-   152
-   153  async function restartSB(){
-   154
-   155   if(!confirm('确定重启 sing-box？'))return;
-   156
-   157   const x=await api(
-   158    '/api/singbox/restart',
-   159    {
-   160     method:'POST',
-   161     body:'{}'
-   162    }
-   163   );
-   164
-   165   if(x){
-   166
-   167    alert(JSON.stringify(x));
-   168
-   169    navigate('singbox');
-   170
-   171   }
-   172
-   173  }
-   174
-   175
-   176  async function loadCertificateStatus(){
-   177
-   178   const box=document.getElementById('cert-status');
-   179
-   180   if(!box)return;
-   181
-   182   box.textContent='正在检查……';
-   183
-   184   const x=await api('/api/certificates');
-   185
-   186   if(!x){
-   187
-   188    box.textContent='读取失败';
-   189
-   190    return;
-   191
-   192   }
-   193
-   194   let html='';
-   195
-   196   html += '<p><b>域名：</b>'+esc(x.host||'-')+'</p>';
-   197   html += '<p><b>证书：</b>'+esc(x.cert||'-')+'</p>';
-   198   html += '<p><b>私钥：</b>'+esc(x.key||'-')+'</p>';
-   199
-   200   html += '<p><b>状态：</b>';
-   201
-   202   if(x.valid){
-   203
-   204    html += '<span class="ok">有效</span>';
-   205
-   206   }else{
-   207
-   208    html += '<span class="bad">不存在或已失效</span>';
-   209
-   210   }
-   211
-   212   html += '</p>';
-   213
-   214   if(x.expires){
-   215
-   216    html += '<p><b>到期：</b>'+esc(x.expires)+'</p>';
-   217
-   218   }
-   219
-   220   if(x.days_left!==null && x.days_left!==undefined){
-   221
-   222    html += '<p><b>剩余：</b>'+esc(String(x.days_left))+' 天</p>';
-   223
-   224   }
-   225
-   226   if(x.issuer){
-   227
-   228    html += '<p><b>签发者：</b>'+esc(x.issuer)+'</p>';
-   229
-   230   }
-   231
-   232   if(x.error){
-   233
-   234    html += '<p class="bad">'+esc(x.error)+'</p>';
-   235
-   236   }
-   237
-   238   box.innerHTML=html;
-   239
-   240  }
-   241
-   242
-   243
-   244  async function issueCertificate(){
-   245
-   246   if(!confirm(
-   247    '确定申请/续期 sing-box TLS 证书？\\n\\n'+
-   248    '系统将使用 HTTP-01 验证。\\n'+
-   249    '请确保域名 DNS 已指向本服务器且 TCP 80 可从公网访问。'
-   250   ))return;
-   251
-   252   const box=document.getElementById('cert-status');
-   253
-   254   if(box)box.textContent='正在申请证书，请稍候……';
-   255
-   256   const x=await api(
-   257    '/api/certificates/issue',
-   258    {
-   259     method:'POST',
-   260     body:JSON.stringify({
-   261      confirm:'CONFIRM'
-   262     })
-   263    }
-   264   );
-   265
-   266   if(box){
-   267
-   268    if(x && x.ok){
-   269
-   270     box.innerHTML=
-   271      '<span class="ok">证书申请/续期成功</span>';
-   272
-   273     setTimeout(loadCertificateStatus,1500);
-   274
-   275    }else{
-   276
-   277     box.innerHTML=
-   278      '<span class="bad">'+
-   279      esc(JSON.stringify(x))+
-   280      '</span>';
-   281
-   282    }
-   283
-   284   }
-   285
-   286  }
-   287
-   288
-   289  /* OCI_SYSTEM_MONITOR_V4 */
-   290
-   291  /*
-   292   * V4 架构：
-   293   *
-   294   * /api/status
-   295   *   -> CPU / memory / disk / load / network
-   296   *
-   297   * /api/system/monitor
-   298   *   -> service health / systemd errors / recent errors
-   299   *
-   300   * /api/system/updates
-   301   *   -> sing-box version / apt updates / update errors
-   302   *
-   303   * 不修改后端 API。
-   304   */
-   305
-   306  /* -------------------------------------------------------------------------
-   307   * V4：实时资源 + 系统健康
-   308   * ------------------------------------------------------------------------- */
-   309
-   310
-   311  window.restartSB = restartSB;
-   312  window.loadCertificateStatus = loadCertificateStatus;
-   313  window.issueCertificate = issueCertificate;
-
-===== UFW MODULE =====
-     1  import { api } from "../core/api.js";
-     2  import { esc } from "../core/ui.js";
-     3
-     4  let booted = false;
-     5  let editing = null;
-     6
-     7  function root() {
-     8      return document.querySelector("main") || document.body;
-     9  }
-    10
-    11  function ensure() {
-    12      let el = document.querySelector("#oci-ufw-manager");
-    13      if (el) return el;
-    14      el = document.createElement("div");
-    15      el.id = "oci-ufw-manager";
-    16      el.style.marginTop = "16px";
-    17      root().appendChild(el);
-    18      return el;
-    19  }
-    20
-    21  function cleanupLegacyBBR() {
-    22      const area = root();
-    23      const walker = document.createTreeWalker(area, NodeFilter.SHOW_TEXT);
-    24      const nodes = [];
-    25      while (walker.nextNode()) nodes.push(walker.currentNode);
-    26      for (const n of nodes) {
-    27          if (!/\bBBR\b/i.test(n.nodeValue || "")) continue;
-    28          const p = n.parentElement;
-    29          if (!p || p.closest("#oci-ufw-manager")) continue;
-    30          const t = (p.textContent || "").trim();
-    31          if (/^BBR\s*[:：]/i.test(t) || /^BBR$/i.test(t)) p.style.display = "none";
-    32      }
-    33  }
-    34
-    35  function cleanupLegacyUFW() {
-    36      const area = root();
-    37      area.querySelectorAll("h2,h3,h4,strong,b").forEach(node => {
-    38          const t = (node.textContent || "").trim();
-    39          if (!/^UFW$|^防火墙$/i.test(t)) return;
-    40          if (node.closest("#oci-ufw-manager")) return;
-    41          node.style.display = "none";
-    42          const next = node.nextElementSibling;
-    43          if (next && /^(PRE|DIV)$/i.test(next.tagName) && /UFW|To\s+Action|Default:/i.test(next.textContent || "")) {
-    44              next.style.display = "none";
-    45          }
-    46      });
-    47  }
-    48
-    49  function ruleDisplay(rule) {
-    50      return `${tx(rule.rule)} ${tx(rule.action)} ${tx(rule.direction)}${rule.protocol ? ` ${tx(rule.port)}/${tx(rule.protocol)}` : ""}`;
-    51  }
-    52
-    53  function tx(v, fallback="UNKNOWN") { return v === null || v === undefined || v === "" ? fallback : String(v); }
-    54
-    55  function render(data) {
-    56      const el = ensure();
-    57      const rules = data.rules || [];
-    58      const visible = [];
-    59      const seenV6 = new Set();
-    60      for (const r of rules) {
-    61          if (r.ipv6) {
-    62              seenV6.add(r.number);
-    63              continue;
-    64          }
-    65          visible.push(r);
-    66      }
-    67      for (const r of rules.filter(x => x.ipv6 && !visible.some(v => v.number === x.number))) visible.push(r);
-    68
-    69      const ruleRows = visible.map(r => `
-    70        <tr>
-    71          <td>${esc(String(r.number))}</td>
-    72          <td>${esc(tx(r.rule))}</td>
-    73          <td>${esc(tx(r.action))}</td>
-    74          <td>${esc(tx(r.direction))}</td>
-    75          <td>${esc(tx(r.protocol, ""))}</td>
-    76          <td>${esc(tx(r.port, ""))}</td>
-    77          <td>${r.ssh_risk ? "⚠ SSH" : ""}</td>
-    78          <td>
-    79            <button class="gray" data-ufw-edit="${esc(String(r.number))}">修改</button>
-    80            <button class="warn" data-ufw-delete="${esc(String(r.number))}">删除</button>
-    81          </td>
-    82        </tr>`).join("") || `<tr><td colspan="8">暂无规则或无法读取</td></tr>`;
-    83
-    84      const edit = editing || {};
-    85      el.innerHTML = `
-    86        <div class="card">
-    87          <h3>🛡 UFW 防火墙</h3>
-    88          <div style="line-height:1.9">
-    89            当前状态：${data.active ? "🟢 Active" : "🔴 Inactive"}<br>
-    90            默认策略：Incoming=${esc(tx((data.defaults||{}).incoming))}，Outgoing=${esc(tx((data.defaults||{}).outgoing))}，Routed=${esc(tx((data.defaults||{}).routed))}<br>
-    91            IPv6：${data.ipv6_enabled === true ? "🟢 Enabled" : data.ipv6_enabled === false ? "🟡 Disabled" : "🟡 UNKNOWN"}
-    92          </div>
-    93
-    94          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-    95            <button id="ufw-reload">刷新真实状态</button>
-    96            ${data.active ? `<button class="warn" id="ufw-disable">禁用 UFW</button>` : `<button id="ufw-enable">启用 UFW</button>`}
-    97          </div>
-    98
-    99          <div style="margin-top:16px;overflow:auto">
-   100            <table style="width:100%;border-collapse:collapse;line-height:1.8">
-   101              <thead><tr><th>#</th><th>规则</th><th>动作</th><th>方向</th><th>协议</th><th>端口</th><th>风险</th><th>操作</th></tr></thead>
-   102              <tbody>${ruleRows}</tbody>
-   103            </table>
-   104          </div>
-   105
-   106          <div style="margin-top:18px">
-   107            <h4>${editing ? `修改规则 #${esc(String(edit.number))}` : "添加防火墙规则"}</h4>
-   108            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
-   109              <label>方向<select id="ufw-direction"><option value="in" ${edit.direction === "in" ? "selected" : ""}>入站</option><option value="out" ${edit.direction === "out" ? "selected" : ""}>出站</option></select></label>
-   110              <label>动作<select id="ufw-action"><option value="allow" ${edit.action === "allow" ? "selected" : ""}>ALLOW</option><option value="deny" ${edit.action === "deny" ? "selected" : ""}>DENY</option><option value="reject" ${edit.action === "reject" ? "selected" : ""}>REJECT</option><option value="limit" ${edit.action === "limit" ? "selected" : ""}>LIMIT</option></select></label>
-   111              <label>协议<select id="ufw-protocol"><option value="tcp" ${edit.protocol === "tcp" ? "selected" : ""}>TCP</option><option value="udp" ${edit.protocol === "udp" ? "selected" : ""}>UDP</option><option value="both" ${edit.protocol === "both" ? "selected" : ""}>TCP + UDP</option></select></label>
-   112              <label>端口<input id="ufw-port" value="${esc(tx(edit.port, ""))}" placeholder="22 或 8000:9000"></label>
-   113              <label>来源<input id="ufw-source" value="${esc(tx(edit.source, "Anywhere"))}" placeholder="Anywhere / 1.2.3.4 / CIDR"></label>
-   114              <label>备注<input id="ufw-comment" value="${esc(tx(edit.comment, ""))}" maxlength="80"></label>
-   115            </div>
-   116            <div style="margin-top:10px">
-   117              <button id="ufw-save">${editing ? "确认修改" : "确认添加"}</button>
-   118              ${editing ? `<button class="gray" id="ufw-cancel">取消</button>` : ""}
-   119            </div>
-   120          </div>
-   121
-   122          <details style="margin-top:16px"><summary>原始 UFW 输出</summary><pre>${esc(tx(data.raw_numbered, ""))}</pre></details>
-   123        </div>
-   124      `;
-   125
-   126      el.querySelector("#ufw-reload")?.addEventListener("click", load);
-   127      el.querySelector("#ufw-enable")?.addEventListener("click", enable);
-   128      el.querySelector("#ufw-disable")?.addEventListener("click", disable);
-   129      el.querySelector("#ufw-cancel")?.addEventListener("click", () => { editing = null; load(); });
-   130      el.querySelector("#ufw-save")?.addEventListener("click", save);
-   131      el.querySelectorAll("[data-ufw-delete]").forEach(btn => btn.addEventListener("click", () => del(Number(btn.dataset.ufwDelete), data)));
-   132      el.querySelectorAll("[data-ufw-edit]").forEach(btn => btn.addEventListener("click", () => {
-   133          const n = Number(btn.dataset.ufwEdit);
-   134          const r = rules.find(x => x.number === n && !x.ipv6) || rules.find(x => x.number === n);
-   135          editing = r ? {
-   136              number:r.number,
-   137              direction:String(r.direction||"IN").toLowerCase()==="out"?"out":"in",
-   138              action:String(r.action||"ALLOW").toLowerCase(),
-   139              protocol:r.protocol||"tcp",
-   140              port:r.port||"",
-   141              source:r.source||"Anywhere",
-   142              comment:r.comment||""
-   143          } : null;
-   144          render(data);
-   145      }));
-   146
-   147      cleanupLegacyBBR();
-   148      cleanupLegacyUFW();
-   149  }
-   150
-   151  async function load() {
-   152      try {
-   153          const data = await api("/api/security/ufw");
-   154          render(data || {});
-   155      } catch (e) {
-   156          render({active:false,defaults:{},rules:[],raw_numbered:`读取 UFW 失败：${e}`});
-   157      }
-   158  }
-   159
-   160  async function save() {
-   161      const el = ensure();
-   162      const payload = {
-   163          direction: el.querySelector("#ufw-direction")?.value,
-   164          action: el.querySelector("#ufw-action")?.value,
-   165          protocol: el.querySelector("#ufw-protocol")?.value,
-   166          port: el.querySelector("#ufw-port")?.value,
-   167          source: el.querySelector("#ufw-source")?.value || "Anywhere",
-   168          comment: el.querySelector("#ufw-comment")?.value || ""
-   169      };
-   170      if (!payload.port) { alert("端口不能为空"); return; }
-   171      const op = editing ? "修改" : "添加";
-   172      if (!confirm(`确认${op} UFW 规则？\n${payload.action.toUpperCase()} ${payload.direction.toUpperCase()} ${payload.port}/${payload.protocol}`)) return;
-   173
-   174      try {
-   175          if (!editing) {
-   176              await api("/api/security/ufw/add", {method:"POST", body:JSON.stringify({...payload,confirm:"CONFIRM"})});
-   177          } else {
-   178              const n = editing.number;
-   179              const ssh = await api("/api/security/ufw", {method:"GET"});
-   180              const risky = (ssh.ssh_rule_numbers || []).includes(n) && String(payload.port) !== "22";
-   181              let confirmSsh = false;
-   182              if (risky) {
-   183                  if (!confirm("⚠ 当前规则与 SSH TCP 22 有关。修改后可能导致 SSH 失联。确认继续？")) return;
-   184                  confirmSsh = true;
-   185              }
-   186              const r = await api("/api/security/ufw/modify", {method:"POST", body:JSON.stringify({...payload,number:n,confirm:"CONFIRM",confirm_ssh:confirmSsh})});
-   187              if (r?.ssh_confirmation_required) {
-   188                  alert("SSH 22 规则需要二次确认");
-   189                  return;
-   190              }
-   191              if (r?.error || r?.ok === false) { alert(JSON.stringify(r)); return; }
-   192          }
-   193          editing = null;
-   194          await load();
-   195      } catch (e) {
-   196          alert("UFW 操作失败："+e);
-   197          await load();
-   198      }
-   199  }
-   200
-   201  async function del(number, data) {
-   202      const row = (data.rules || []).find(x => x.number === number && !x.ipv6) || (data.rules || []).find(x => x.number === number);
-   203      if (!confirm(`确认删除规则 #${number}？\n${row ? ruleDisplay(row) : "UNKNOWN"}`)) return;
-   204      let confirmSsh = false;
-   205      if ((data.ssh_rule_numbers || []).includes(number)) {
-   206          if (!confirm("⚠ 注意：当前服务器 SSH 使用 TCP 22。\n删除此规则可能导致你失去 SSH 访问。\n确认继续？")) return;
-   207          confirmSsh = true;
-   208      }
-   209      try {
-   210          const x = await api("/api/security/ufw/delete", {method:"POST",body:JSON.stringify({number,confirm:"CONFIRM",confirm_ssh:confirmSsh})});
-   211          if (x?.ssh_confirmation_required) {
-   212              alert("SSH 规则需要二次确认");
-   213              return;
-   214          }
-   215          if (x?.error || x?.ok === false) { alert(JSON.stringify(x)); return; }
-   216          await load();
-   217      } catch(e) {
-   218          alert("删除失败："+e);
-   219          await load();
-   220      }
-   221  }
-   222
-   223  async function enable() {
-   224      if (!confirm("确认启用 UFW？\n启用后现有防火墙规则将立即生效。")) return;
-   225      try { await api("/api/security/ufw/enable", {method:"POST",body:JSON.stringify({confirm:"CONFIRM"})}); await load(); }
-   226      catch(e){ alert("启用失败："+e); }
-   227  }
-   228
-   229  async function disable() {
-   230      if (!confirm("确认禁用 UFW？\n禁用后防火墙规则将不再生效。")) return;
-   231      try { await api("/api/security/ufw/disable", {method:"POST",body:JSON.stringify({confirm:"CONFIRM"})}); await load(); }
-   232      catch(e){ alert("禁用失败："+e); }
-   233  }
-   234
-   235  export function ufwStart() {
-   236      if (booted) return;
-   237      booted = true;
-   238      setTimeout(() => {
-   239          ensure();
-   240          load();
-   241      }, 0);
-   242  }
-   243
-   244  ufwStart();
-
-===== NETWORK MODULE =====
-     1  import { api } from "../core/api.js";
-     2  import { esc } from "../core/ui.js";
-     3
-     4  let mounted = false;
-     5
-     6  function ensure() {
-     7      let el = document.querySelector("#oci-singbox-network-opt");
-     8      if (el) return el;
-     9      const main = document.querySelector("main") || document.body;
-    10      el = document.createElement("div");
-    11      el.id = "oci-singbox-network-opt";
-    12      el.style.marginTop = "16px";
-    13      main.appendChild(el);
-    14      return el;
-    15  }
-    16
-    17  function cleanupLegacyNetwork() {
-    18      const area = document.querySelector("main") || document.body;
-    19      area.querySelectorAll("h2,h3,h4,strong,b").forEach(node => {
-    20          const t = (node.textContent || "").trim();
-    21          if (!/^BBR$|^网络优化$/i.test(t)) return;
-    22          if (node.closest("#oci-singbox-network-opt")) return;
-    23          node.style.display = "none";
-    24          const next = node.nextElementSibling;
-    25          if (next && /^(PRE|DIV)$/i.test(next.tagName)) next.style.display = "none";
-    26      });
-    27  }
-    28
-    29  async function load() {
-    30      const el = ensure();
-    31      try {
-    32          const x = await api("/api/singbox/network");
-    33          const tcp = x.tcp_congestion_control || {};
-    34          const tuic = x.tuic || [];
-    35          el.innerHTML = `
-    36            <div class="card">
-    37              <h3>🌐 网络优化</h3>
-    38              <div style="line-height:1.9">
-    39                TCP Congestion Control：<b>${esc(String(tcp.current ?? "UNKNOWN"))}</b><br>
-    40                可用：${esc((tcp.available || []).join(", ") || "UNKNOWN")}<br>
-    41                Default Qdisc：${esc(String(tcp.qdisc ?? "UNKNOWN"))}
-    42              </div>
-    43              <div style="margin-top:10px;line-height:1.9">
-    44                <b>TUIC</b><br>
-    45                ${tuic.length ? tuic.map(v => `${esc(String(v.tag || v.path))}：congestion_control = ${esc(String(v.congestion_control ?? "UNKNOWN"))}`).join("<br>") : "未检测到 TUIC 配置"}
-    46              </div>
-    47              <div class="muted" style="margin-top:10px">
-    48                本模块只移动/展示状态，不修改当前 BBR、TUIC 或 sing-box 配置。
-    49              </div>
-    50            </div>`;
-    51          cleanupLegacyNetwork();
-    52      } catch (e) {
-    53          el.innerHTML = `<div class="card">读取网络优化状态失败：${esc(String(e))}</div>`;
-    54      }
-    55  }
-    56
-    57  export function singboxNetworkStart() {
-    58      if (mounted) return;
-    59      mounted = true;
-    60      setTimeout(() => load(), 0);
-    61  }
+    36  GITHUB_REPOS = {
+    37      "singbox": "SagerNet/sing-box",
+    38      "caddy": "caddyserver/caddy",
+    39      "ollama": "ollama/ollama",
+    40  }
+    41
+    42
+    43  def _run(cmd, timeout=30):
+    44      try:
+    45          p = subprocess.run(
+    46              cmd,
+    47              text=True,
+    48              stdout=subprocess.PIPE,
+    49              stderr=subprocess.STDOUT,
+    50              timeout=timeout,
+    51              check=False,
+    52          )
+    53
+    54          return p.returncode, (p.stdout or "").strip()
+    55
+    56      except Exception as e:
+    57          return 999, str(e)
+    58
+    59
+    60  def _github_latest(repo):
+    61      url = f"https://api.github.com/repos/{repo}/releases/latest"
     62
-    63  singboxNetworkStart();
-root@hhrcfhqf-oracle-cloud:~# 
+    63      req = urllib.request.Request(
+    64          url,
+    65          headers={
+    66              "Accept": "application/vnd.github+json",
+    67              "User-Agent": "OCI-Linux-Lab-System-Update-Checker",
+    68          },
+    69      )
+    70
+    71      try:
+    72          with urllib.request.urlopen(req, timeout=12) as r:
+    73              data = json.loads(r.read().decode("utf-8"))
+    74
+    75          tag = str(
+    76              data.get("tag_name") or ""
+    77          ).strip()
+    78
+    79          if tag.startswith("v"):
+    80              tag = tag[1:]
+    81
+    82          return {
+    83              "version": tag,
+    84              "url": data.get("html_url") or "",
+    85              "published_at": data.get("published_at") or "",
+    86              "error": "",
+    87          }
+    88
+    89      except Exception as e:
+    90          return {
+    91              "version": "",
+    92              "url": f"https://github.com/{repo}/releases/latest",
+    93              "published_at": "",
+    94              "error": str(e),
+    95          }
+    96
+    97
+    98  def _version_parts(v):
+    99      s = str(v or "").strip().lower()
+   100
+   101      if s.startswith("v"):
+   102          s = s[1:]
+   103
+   104      parts = re.findall(
+   105          r"\d+|[a-z]+",
+   106          s
+   107      )
+   108
+   109      out = []
+   110
+   111      for p in parts:
+   112          if p.isdigit():
+   113              out.append((0, int(p)))
+   114          else:
+   115              out.append((1, p))
+   116
+   117      return out
+   118
+   119
+   120  def _cmp(a, b):
+   121      pa = _version_parts(a)
+   122      pb = _version_parts(b)
+   123
+   124      n = max(len(pa), len(pb))
+   125
+   126      for i in range(n):
+   127
+   128          xa = pa[i] if i < len(pa) else (0, 0)
+   129          xb = pb[i] if i < len(pb) else (0, 0)
+   130
+   131          if xa == xb:
+   132              continue
+   133
+   134          if xa[0] != xb[0]:
+   135              return -1 if xa[0] < xb[0] else 1
+   136
+   137          return -1 if xa[1] < xb[1] else 1
+   138
+   139      return 0
+   140
+   141
+   142  def _newer(current, latest):
+   143      return bool(
+   144          current
+   145          and latest
+   146          and _cmp(latest, current) > 0
+   147      )
+   148
+   149
+   150  def _singbox_version():
+   151
+   152      path = (
+   153          shutil.which("sing-box")
+   154          or "/usr/bin/sing-box"
+   155      )
+   156
+   157      if not os.path.isfile(path):
+   158          return {
+   159              "current": "",
+   160              "path": path,
+   161              "error": "sing-box 未安装或不存在",
+   162          }
+   163
+   164      rc, out = _run(
+   165          [path, "version"],
+   166          timeout=8
+   167      )
+   168
+   169      m = re.search(
+   170          r"(?:sing-box\s+)?version\s+v?([0-9][0-9A-Za-z.\-_]*)",
+   171          out,
+   172          re.I
+   173      )
+   174
+   175      if not m:
+   176          m = re.search(
+   177              r"\bv?([0-9]+\.[0-9]+(?:\.[0-9]+)?)\b",
+   178              out
+   179          )
+   180
+   181      current = m.group(1) if m else ""
+   182
+   183      return {
+   184          "current": current,
+   185          "path": path,
+   186          "error": (
+   187              ""
+   188              if rc == 0 and current
+   189              else (
+   190                  out
+   191                  or f"sing-box version check failed: exit={rc}"
+   192              )
+   193          ),
+   194      }
+   195
+   196
+   197  def _caddy_version():
+   198
+   199      path = (
+   200          shutil.which("caddy")
+   201          or "/usr/bin/caddy"
+   202      )
+   203
+   204      if not os.path.isfile(path):
+   205          return {
+   206              "current": "",
+   207              "path": path,
+   208              "error": "Caddy 未安装或不存在",
+   209          }
+   210
+   211      rc, out = _run(
+   212          [path, "version"],
+   213          timeout=8
+   214      )
+   215
+   216      m = re.search(
+   217          r"v?([0-9]+\.[0-9]+\.[0-9]+[^\s]*)",
+   218          out
+   219      )
+   220
+   221      current = m.group(1) if m else ""
+   222
+   223      return {
+   224          "current": current,
+   225          "path": path,
+   226          "error": (
+   227              ""
+   228              if rc == 0 and current
+   229              else (
+   230                  out
+   231                  or f"Caddy version check failed: exit={rc}"
+   232              )
+   233          ),
+   234      }
+   235
+   236
+   237  def _ollama_version():
+   238
+   239      path = (
+   240          shutil.which("ollama")
+   241          or "/usr/local/bin/ollama"
+   242      )
+   243
+   244      # Ollama 已经作为 systemd 服务运行时，
+   245      # 优先查询本机 API。
+   246      #
+   247      # 这样不会受到 Panel systemd 环境中 HOME
+   248      # 未定义导致的 Ollama CLI panic 影响。
+   249
+   250      try:
+   251          req = urllib.request.Request(
+   252              "http://127.0.0.1:11434/api/version",
+   253              headers={
+   254                  "User-Agent": "OCI-Linux-Lab-System-Update-Checker",
+   255              },
+   256          )
+   257
+   258          with urllib.request.urlopen(
+   259              req,
+   260              timeout=5
+   261          ) as r:
+   262
+   263              data = json.loads(
+   264                  r.read().decode("utf-8")
+   265              )
+   266
+   267          current = str(
+   268              data.get("version") or ""
+   269          ).strip()
+   270
+   271          if current:
+   272              return {
+   273                  "current": current,
+   274                  "path": path,
+   275                  "error": "",
+   276              }
+   277
+   278      except Exception as e:
+   279
+   280          api_error = str(e)
+   281
+   282      else:
+   283          api_error = "Ollama API 未返回版本号"
+   284
+   285      # API 不可用时再回退到 CLI。
+   286      # CLI 必须提供有效 HOME。
+   287      #
+   288      # 当前服务器的 Ollama systemd 用户为：
+   289      #   ollama
+   290      # HOME：
+   291      #   /usr/share/ollama
+   292
+   293      rc, out = _run(
+   294          [
+   295              "env",
+   296              "HOME=/usr/share/ollama",
+   297              "USER=ollama",
+   298              "LOGNAME=ollama",
+   299              path,
+   300              "--version",
+   301          ],
+   302          timeout=8
+   303      )
+   304
+   305      m = re.search(
+   306          r"(?:ollama(?:\s+version)?\s*(?:is)?\s*)v?([0-9]+\.[0-9]+\.[0-9]+[^\s]*)",
+   307          out,
+   308          re.I
+   309      )
+   310
+   311      if not m:
+   312          m = re.search(
+   313              r"\bv?([0-9]+\.[0-9]+\.[0-9]+[^\s]*)\b",
+   314              out
+   315          )
+   316
+   317      current = m.group(1) if m else ""
+   318
+   319      return {
+   320          "current": current,
+   321          "path": path,
+   322          "error": (
+   323              ""
+   324              if rc == 0 and current
+   325              else (
+   326                  out
+   327                  or api_error
+   328                  or f"Ollama version check failed: exit={rc}"
+   329              )
+   330          ),
+   331      }
+   332
+   333
+   334  def _ubuntu_apt():
+   335
+   336      rc, osr = _run(
+   337          [
+   338              "bash",
+   339              "-lc",
+   340              ". /etc/os-release 2>/dev/null; "
+   341              "echo ${PRETTY_NAME:-unknown}"
+   342          ],
+   343          timeout=5
+   344      )
+   345
+   346      ubuntu = osr.strip() if rc == 0 else "unknown"
+   347
+   348      update_rc, update_out = _run(
+   349          [
+   350              "apt-get",
+   351              "update",
+   352              "-qq"
+   353          ],
+   354          timeout=120
+   355      )
+   356
+   357      rc2, sim = _run(
+   358          [
+   359              "apt-get",
+   360              "-s",
+   361              "-o",
+   362              "APT::Get::Show-Upgraded=true",
+   363              "upgrade"
+   364          ],
+   365          timeout=60
+   366      )
+   367
+   368      packages = []
+   369      security = 0
+   370
+   371      if rc2 == 0:
+   372
+   373          for line in sim.splitlines():
+   374
+   375              line = line.strip()
+   376
+   377              if not line.startswith("Inst "):
+   378                  continue
+   379
+   380              parts = line.split()
+   381
+   382              if len(parts) < 2:
+   383                  continue
+   384
+   385              packages.append(parts[1])
+   386
+   387              if (
+   388                  "security.ubuntu.com" in line
+   389                  or "jammy-security" in line
+   390                  or "-security" in line
+   391              ):
+   392                  security += 1
+   393
+   394      return {
+   395          "ubuntu": ubuntu,
+   396          "available_packages": len(packages),
+   397          "security_packages": security,
+   398          "packages": packages[:200],
+   399          "update_index_ok": update_rc == 0,
+   400          "simulation_ok": rc2 == 0,
+   401          "error": (
+   402              ""
+   403              if update_rc == 0 and rc2 == 0
+   404              else (
+   405                  update_out
+   406                  or sim
+   407                  or f"apt exit={update_rc}/{rc2}"
+   408              )
+   409          ),
+   410      }
+   411
+   412
+   413  def _component(name, current_info, latest_info):
+   414
+   415      current = current_info.get("current", "")
+   416      latest = latest_info.get("version", "")
+   417
+   418      err = (
+   419          current_info.get("error")
+   420          or latest_info.get("error")
+   421          or ""
+   422      )
+   423
+   424      newer = _newer(current, latest)
+   425
+   426      if newer:
+   427          status = "update_available"
+   428      elif current and latest:
+   429          status = "up_to_date"
+   430      elif err:
+   431          status = "check_failed"
+   432      else:
+   433          status = "unknown"
+   434
+   435      return {
+   436          "name": name,
+   437          "current": current,
+   438          "latest": latest,
+   439          "newer": newer,
+   440          "status": status,
+   441          "release_url": latest_info.get("url", ""),
+   442          "published_at": latest_info.get("published_at", ""),
+   443          "error": err,
+   444          "path": current_info.get("path", ""),
+   445      }
+   446
+   447
+   448  # ============================================================================
+   449  # 单模块检查
+   450  # ============================================================================
+   451
+   452  def check_component(component, force=False):
+   453
+   454      component = str(component or "").strip().lower()
+   455
+   456      if component not in (
+   457          "singbox",
+   458          "caddy",
+   459          "ollama",
+   460          "apt",
+   461      ):
+   462          raise ValueError(
+   463              f"未知更新模块: {component}"
+   464          )
+   465
+   466      now = time.time()
+   467
+   468      if (
+   469          not force
+   470          and component in _CACHE
+   471          and now - _CACHE_TIME.get(component, 0) < CACHE_SECONDS
+   472      ):
+   473          return _CACHE[component]
+   474
+   475      if component == "singbox":
+   476
+   477          current = _singbox_version()
+   478          latest = _github_latest(
+   479              GITHUB_REPOS["singbox"]
+   480          )
+   481
+   482          data = _component(
+   483              "sing-box",
+   484              current,
+   485              latest
+   486          )
+   487
+   488      elif component == "caddy":
+   489
+   490          current = _caddy_version()
+   491          latest = _github_latest(
+   492              GITHUB_REPOS["caddy"]
+   493          )
+   494
+   495          data = _component(
+   496              "Caddy",
+   497              current,
+   498              latest
+   499          )
+   500
+   501      elif component == "ollama":
+   502
+   503          current = _ollama_version()
+   504          latest = _github_latest(
+   505              GITHUB_REPOS["ollama"]
+   506          )
+   507
+   508          data = _component(
+   509              "Ollama",
+   510              current,
+   511              latest
+   512          )
+   513
+   514      else:
+   515
+   516          data = _ubuntu_apt()
+   517
+   518      checked_at = time.strftime(
+   519          "%Y-%m-%dT%H:%M:%SZ",
+   520          time.gmtime(now)
+   521      )
+   522
+   523      if component != "apt":
+   524          data["checked_at"] = checked_at
+   525
+   526      else:
+   527          data["checked_at"] = checked_at
+   528
+   529      _CACHE[component] = data
+   530      _CACHE_TIME[component] = now
+   531
+   532      return data
+   533
+   534
+   535  # ============================================================================
+   536  # 保留总览接口
+   537  #
+   538  # 仅用于：
+   539  #   首次进入页面
+   540  #   每日自动检查
+   541  #
+   542  # 手动点击模块按钮不会调用这里。
+   543  # ============================================================================
+   544
+   545  def collect(force=False):
+   546
+   547      return {
+   548          "ok": True,
+   549          "checked_at": time.strftime(
+   550              "%Y-%m-%dT%H:%M:%SZ",
+   551              time.gmtime()
+   552          ),
+   553          "cache_seconds": CACHE_SECONDS,
+   554          "singbox": check_component(
+   555              "singbox",
+   556              force=force
+   557          ),
+   558          "apt": check_component(
+   559              "apt",
+   560              force=force
+   561          ),
+   562          "caddy": check_component(
+   563              "caddy",
+   564              force=force
+   565          ),
+   566          "ollama": check_component(
+   567              "ollama",
+   568              force=force
+   569          ),
+   570      }
+   571
+   572
+   573  # ============================================================================
+   574  # 手动更新
+   575  #
+   576  # 注意：
+   577  #   本函数不会被 GET 调用。
+   578  #   server.py 必须先验证 CONFIRM，
+   579  #   然后才允许执行。
+   580  # ============================================================================
+   581
+   582  def update_component(component):
+   583
+   584      component = str(component or "").strip().lower()
+   585
+   586      if component == "singbox":
+   587
+   588          rc, out = _run(
+   589              [
+   590                  "systemd-run",
+   591                  "--wait",
+   592                  "--pipe",
+   593                  "--collect",
+   594                  "/opt/oci-zero-cost-lab/scripts/singbox-update",
+   595              ],
+   596              timeout=900
+   597          )
+   598
+   599      elif component == "apt":
+   600
+   601          rc, out = _run(
+   602              [
+   603                  "systemd-run",
+   604                  "--wait",
+   605                  "--pipe",
+   606                  "--collect",
+   607                  "/opt/oci-zero-cost-lab/scripts/system-update",
+   608              ],
+   609              timeout=900
+   610          )
+   611
+   612      elif component == "caddy":
+   613
+   614          # 使用 Caddy 官方推荐安装脚本。
+   615          # 不修改 Caddyfile。
+   616          rc, out = _run(
+   617              [
+   618                  "bash",
+   619                  "-lc",
+   620                  "curl -fsSL https://getcaddy.com "
+   621                  "| bash -s personal && "
+   622                  "systemctl restart caddy"
+   623              ],
+   624              timeout=900
+   625          )
+   626
+   627      elif component == "ollama":
+   628
+   629          # 使用 Ollama 官方安装脚本。
+   630          # 不删除模型目录。
+   631          #
+   632          # 官方安装脚本在 usermod / group 处理阶段可能返回
+   633          # 非 0，但 Ollama 本体可能已经完成更新。
+   634          #
+   635          # 因此：
+   636          #   1. 执行官方安装脚本
+   637          #   2. 主动重启 Ollama
+   638          #   3. 检查 Ollama API
+   639          #   4. 检查 Ollama CLI
+   640          #
+   641          # 最终返回值由实际服务状态决定。
+   642
+   643          rc, out = _run(
+   644              [
+   645                  "bash",
+   646                  "-lc",
+   647                  """
+   648  set +e
+   649
+   650  curl -fsSL https://ollama.com/install.sh | sh
+   651  install_rc=$?
+   652
+   653  systemctl restart ollama
+   654  restart_rc=$?
+   655
+   656  sleep 2
+   657
+   658  api=$(curl -fsS --max-time 8     http://127.0.0.1:11434/api/version 2>&1)
+   659  api_rc=$?
+   660
+   661  cli=$(HOME=/usr/share/ollama USER=ollama LOGNAME=ollama     /usr/local/bin/ollama --version 2>&1)
+   662  cli_rc=$?
+   663
+   664  printf '\n[OCI-OLLAMA-UPDATE] install_rc=%s restart_rc=%s api_rc=%s cli_rc=%s\n'     "$install_rc" "$restart_rc" "$api_rc" "$cli_rc"
+   665
+   666  printf '[OCI-OLLAMA-UPDATE] api=%s\n' "$api"
+   667  printf '[OCI-OLLAMA-UPDATE] cli=%s\n' "$cli"
+   668
+   669  if [ "$restart_rc" -eq 0 ] &&
+   670     [ "$api_rc" -eq 0 ] &&
+   671     echo "$api" | grep -q '"version"' &&
+   672     [ "$cli_rc" -eq 0 ]
+   673  then
+   674      exit 0
+   675  fi
+   676
+   677  exit 1
+   678  """,
+   679              ],
+   680              timeout=900
+   681          )
+   682
+   683      else:
+   684
+   685          return {
+   686              "ok": False,
+   687              "component": component,
+   688              "error": f"未知更新模块: {component}",
+   689          }
+   690
+   691      # 更新成功后清除对应缓存。
+   692      _CACHE.pop(component, None)
+   693      _CACHE_TIME.pop(component, None)
+   694
+   695      return {
+   696          "ok": rc == 0,
+   697          "component": component,
+   698          "output": out[-6000:],
+   699          "exit_code": rc,
+   700      }
+
+===== 06. ALL UPDATE SOURCES =====
+/opt/oci-zero-cost-lab/panel/common.py:8:SINGBOX=Path("/etc/sing-box/config.json")
+/opt/oci-zero-cost-lab/panel/common.py:104:      "services":{x:service_active(x) for x in ("sing-box","caddy","oci-linux-lab","ollama","oci-free-guard.timer")}
+/opt/oci-zero-cost-lab/panel/server.py:105:            if not real or not secrets.compare_digest(tok,real): self.page(b"not found",404); return
+/opt/oci-zero-cost-lab/panel/server.py:205:                    "ollama",
+/opt/oci-zero-cost-lab/panel/auth.py:26:        dig=hmac.new(key,msg,hashlib.sha1).digest()
+/opt/oci-zero-cost-lab/panel/auth.py:29:        if hmac.compare_digest(f"{n%1000000:06d}",str(code).strip()):
+/opt/oci-zero-cost-lab/panel/auth.py:40:    return bool(u and p and secrets.compare_digest(user,u) and secrets.compare_digest(pw,p))
+/opt/oci-zero-cost-lab/panel/singbox.py:12:    rc,ver=run(["sing-box","version"])
+/opt/oci-zero-cost-lab/panel/singbox.py:13:    rc2,chk=run(["sing-box","check","-c",str(SINGBOX)],timeout=30)
+/opt/oci-zero-cost-lab/panel/singbox.py:15:            "active":service_active("sing-box"),"nodes":nodes}
+/opt/oci-zero-cost-lab/panel/singbox.py:17:    rc,out=run(["systemctl","restart","sing-box"],timeout=30)
+/opt/oci-zero-cost-lab/panel/system_monitor.py:7:    "sing-box": "sing-box.service",
+/opt/oci-zero-cost-lab/panel/system_monitor.py:10:    "Ollama": "ollama.service",
+/opt/oci-zero-cost-lab/panel/system_monitor.py:14:    "sing-box": "sing-box.service",
+/opt/oci-zero-cost-lab/panel/system_monitor.py:16:    "Ollama": "ollama.service",
+/opt/oci-zero-cost-lab/panel/templates.py:248:<div class="nav" data-p="singbox">📦 <span>sing-box</span></div>
+/opt/oci-zero-cost-lab/panel/nodes.py:92:            "active": service_active("sing-box"),
+/opt/oci-zero-cost-lab/panel/certificates.py:8:CERT_DIR = Path("/etc/sing-box/certs")
+/opt/oci-zero-cost-lab/panel/certificates.py:154:    # sing-box normally runs as root; keep directory accessible.
+/opt/oci-zero-cost-lab/panel/certificates.py:158:        "sing-box",
+/opt/oci-zero-cost-lab/panel/certificates.py:167:            "error": "证书已复制，但 sing-box 配置检查失败",
+/opt/oci-zero-cost-lab/panel/certificates.py:172:        ["systemctl", "restart", "sing-box"],
+/opt/oci-zero-cost-lab/panel/logs.py:2:ALLOWED={"oci-linux-lab","sing-box","caddy","ollama"}
+/opt/oci-zero-cost-lab/panel/static/modules/logs.js:14:    <option>sing-box</option>
+/opt/oci-zero-cost-lab/panel/static/modules/logs.js:16:    <option>ollama</option>
+/opt/oci-zero-cost-lab/panel/static/modules/nodes.js:21:   数据直接读取 /etc/sing-box/config.json，不重新生成密钥。
+/opt/oci-zero-cost-lab/panel/static/modules/nodes.js:28:    '<div class="card">没有发现节点。请检查 sing-box 配置。</div>'
+/opt/oci-zero-cost-lab/panel/static/modules/nodes.js:164: ${n.active?'sing-box active':'sing-box inactive'}
+/opt/oci-zero-cost-lab/panel/static/modules/nodes.js:205:  '？\\n\\n系统会备份配置、检查配置并重启 sing-box。'
+/opt/oci-zero-cost-lab/panel/static/modules/actions.js:7:        message = "确认更新 sing-box？";
+/opt/oci-zero-cost-lab/panel/static/modules/ai.js:11:   当前连接本机 Ollama / Qwen3。
+/opt/oci-zero-cost-lab/panel/static/modules/ai.js:12:   可以直接询问 Linux、systemd、网络、sing-box 等问题。
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:37: *   "sing-box": {
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:60:        key: "sing-box",
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:61:        label: "sing-box",
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:62:        unit: "sing-box.service"
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:70:        key: "ollama",
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:71:        label: "Ollama",
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:72:        unit: "ollama.service"
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:89: * ["sing-box", "Caddy"]
+/opt/oci-zero-cost-lab/panel/static/modules/overview-monitor.js:133: *   "sing-box": {
+/opt/oci-zero-cost-lab/panel/static/modules/singbox-network.js:7: * Sing-box 页面进入时由 singbox.js 显式调用。
+/opt/oci-zero-cost-lab/panel/static/modules/singbox-network.js:56:              本模块只移动/展示状态，不修改当前 BBR、TUIC 或 sing-box 配置。
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:15:    * sing-box version 原始输出包含完整构建信息。
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:21:   let shortVersion = "sing-box";
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:27:       if(value.startsWith("sing-box version")){
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:66:   <h2>sing-box</h2>
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:141:   <button onclick="restartSB()">重启 sing-box</button>
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:156: if(!confirm('确定重启 sing-box？'))return;
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:248:  '确定申请/续期 sing-box TLS 证书？\\n\\n'+
+/opt/oci-zero-cost-lab/panel/static/modules/singbox.js:302: *   -> sing-box version / apt updates / update errors
+/opt/oci-zero-cost-lab/panel/static/modules/subscription.js:122:     订阅始终读取当前 sing-box 配置。
+/opt/oci-zero-cost-lab/panel/static/modules/subscription.js:132:     以下 URI 直接从当前 sing-box 节点配置生成。
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:13:        title: "sing-box",
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:21:        key: "ollama",
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:23:        title: "Ollama",
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:28:    singbox: "sing-box",
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:30:    ollama: "Ollama",
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:446:            "📦 sing-box"
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:458:            "🤖 Ollama"
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:477:            loadComponent("ollama", false),
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:488:        ollama: null,
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:515:        data.ollama =
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:878:            "sing-box",
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:894:            data.ollama,
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:896:            "Ollama",
+/opt/oci-zero-cost-lab/panel/static/modules/system-update.js:897:            "ollama"
+/opt/oci-zero-cost-lab/panel/network_opt.py:8:SINGBOX = Path("/etc/sing-box/config.json")
+/opt/oci-zero-cost-lab/panel/ai.py:14:MODEL=runtime_env().get("OLLAMA_MODEL") or parse_env().get("OLLAMA_MODEL") or "qwen3:4b-instruct"
+/opt/oci-zero-cost-lab/panel/ai.py:15:URL=runtime_env().get("OLLAMA_URL") or "http://127.0.0.1:11434"
+/opt/oci-zero-cost-lab/panel/ai.py:19:默认只提供只读诊断和学习建议。涉及修改 SSH、UFW、防火墙、sing-box、系统服务、软件包或删除数据时，
+/opt/oci-zero-cost-lab/panel/ai.py:23:    rc,out=__import__("subprocess").getstatusoutput("ollama list")
+/opt/oci-zero-cost-lab/panel/ai.py:40:        return {"ok":False,"error":f"Ollama 请求失败: {e}"}
+/opt/oci-zero-cost-lab/panel/oci_free.py:13:SINGBOX = Path("/etc/sing-box/config.json")
+/opt/oci-zero-cost-lab/panel/system.py:11:    return {x:service_active(x) for x in ("sing-box","caddy","oci-linux-lab","ollama","oci-free-guard.timer")}
+/opt/oci-zero-cost-lab/panel/raw_subscription.py:7:SINGBOX = Path("/etc/sing-box/config.json")
+/opt/oci-zero-cost-lab/panel/system_updates.py:20:#   ollama
+/opt/oci-zero-cost-lab/panel/system_updates.py:37:    "singbox": "SagerNet/sing-box",
+/opt/oci-zero-cost-lab/panel/system_updates.py:38:    "caddy": "caddyserver/caddy",
+/opt/oci-zero-cost-lab/panel/system_updates.py:39:    "ollama": "ollama/ollama",
+/opt/oci-zero-cost-lab/panel/system_updates.py:61:    url = f"https://api.github.com/repos/{repo}/releases/latest"
+/opt/oci-zero-cost-lab/panel/system_updates.py:92:            "url": f"https://github.com/{repo}/releases/latest",
+/opt/oci-zero-cost-lab/panel/system_updates.py:153:        shutil.which("sing-box")
+/opt/oci-zero-cost-lab/panel/system_updates.py:154:        or "/usr/bin/sing-box"
+/opt/oci-zero-cost-lab/panel/system_updates.py:161:            "error": "sing-box 未安装或不存在",
+/opt/oci-zero-cost-lab/panel/system_updates.py:170:        r"(?:sing-box\s+)?version\s+v?([0-9][0-9A-Za-z.\-_]*)",
+/opt/oci-zero-cost-lab/panel/system_updates.py:191:                or f"sing-box version check failed: exit={rc}"
+/opt/oci-zero-cost-lab/panel/system_updates.py:237:def _ollama_version():
+/opt/oci-zero-cost-lab/panel/system_updates.py:240:        shutil.which("ollama")
+/opt/oci-zero-cost-lab/panel/system_updates.py:241:        or "/usr/local/bin/ollama"
+/opt/oci-zero-cost-lab/panel/system_updates.py:244:    # Ollama 已经作为 systemd 服务运行时，
+/opt/oci-zero-cost-lab/panel/system_updates.py:248:    # 未定义导致的 Ollama CLI panic 影响。
+/opt/oci-zero-cost-lab/panel/system_updates.py:283:        api_error = "Ollama API 未返回版本号"
+/opt/oci-zero-cost-lab/panel/system_updates.py:288:    # 当前服务器的 Ollama systemd 用户为：
+/opt/oci-zero-cost-lab/panel/system_updates.py:289:    #   ollama
+/opt/oci-zero-cost-lab/panel/system_updates.py:291:    #   /usr/share/ollama
+/opt/oci-zero-cost-lab/panel/system_updates.py:296:            "HOME=/usr/share/ollama",
+/opt/oci-zero-cost-lab/panel/system_updates.py:297:            "USER=ollama",
+/opt/oci-zero-cost-lab/panel/system_updates.py:298:            "LOGNAME=ollama",
+/opt/oci-zero-cost-lab/panel/system_updates.py:306:        r"(?:ollama(?:\s+version)?\s*(?:is)?\s*)v?([0-9]+\.[0-9]+\.[0-9]+[^\s]*)",
+/opt/oci-zero-cost-lab/panel/system_updates.py:328:                or f"Ollama version check failed: exit={rc}"
+/opt/oci-zero-cost-lab/panel/system_updates.py:459:        "ollama",
+/opt/oci-zero-cost-lab/panel/system_updates.py:483:            "sing-box",
+/opt/oci-zero-cost-lab/panel/system_updates.py:501:    elif component == "ollama":
+/opt/oci-zero-cost-lab/panel/system_updates.py:503:        current = _ollama_version()
+/opt/oci-zero-cost-lab/panel/system_updates.py:505:            GITHUB_REPOS["ollama"]
+/opt/oci-zero-cost-lab/panel/system_updates.py:509:            "Ollama",
+/opt/oci-zero-cost-lab/panel/system_updates.py:566:        "ollama": check_component(
+/opt/oci-zero-cost-lab/panel/system_updates.py:567:            "ollama",
+/opt/oci-zero-cost-lab/panel/system_updates.py:627:    elif component == "ollama":
+/opt/oci-zero-cost-lab/panel/system_updates.py:629:        # 使用 Ollama 官方安装脚本。
+/opt/oci-zero-cost-lab/panel/system_updates.py:633:        # 非 0，但 Ollama 本体可能已经完成更新。
+/opt/oci-zero-cost-lab/panel/system_updates.py:637:        #   2. 主动重启 Ollama
+/opt/oci-zero-cost-lab/panel/system_updates.py:638:        #   3. 检查 Ollama API
+/opt/oci-zero-cost-lab/panel/system_updates.py:639:        #   4. 检查 Ollama CLI
+/opt/oci-zero-cost-lab/panel/system_updates.py:650:curl -fsSL https://ollama.com/install.sh | sh
+/opt/oci-zero-cost-lab/panel/system_updates.py:653:systemctl restart ollama
+/opt/oci-zero-cost-lab/panel/system_updates.py:661:cli=$(HOME=/usr/share/ollama USER=ollama LOGNAME=ollama     /usr/local/bin/ollama --version 2>&1)
+/opt/oci-zero-cost-lab/panel/system_updates.py:664:printf '\n[OCI-OLLAMA-UPDATE] install_rc=%s restart_rc=%s api_rc=%s cli_rc=%s\n'     "$install_rc" "$restart_rc" "$api_rc" "$cli_rc"
+/opt/oci-zero-cost-lab/panel/system_updates.py:666:printf '[OCI-OLLAMA-UPDATE] api=%s\n' "$api"
+/opt/oci-zero-cost-lab/panel/system_updates.py:667:printf '[OCI-OLLAMA-UPDATE] cli=%s\n' "$cli"
+
+===== 07. RUN-* UNITS FROM CURRENT BOOT =====
+Oct 08 07:08:30 hhrcfhqf-oracle-cloud systemd[1]: run-u1296.service: Deactivated successfully.
+Oct 08 07:08:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1297.service: Deactivated successfully.
+Oct 08 07:08:50 hhrcfhqf-oracle-cloud systemd[1]: run-u1298.service: Main process exited, code=exited, status=22/n/a
+Oct 08 07:08:50 hhrcfhqf-oracle-cloud systemd[1]: run-u1298.service: Failed with result 'exit-code'.
+
+===== 08. RECENT RUN-U* UNITS =====
+
+===== 09. RUN-U1298 JOURNAL =====
+Oct 08 07:08:49 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/singbox-update.
+Oct 08 07:08:50 hhrcfhqf-oracle-cloud systemd[1]: run-u1298.service: Main process exited, code=exited, status=22/n/a
+Oct 08 07:08:50 hhrcfhqf-oracle-cloud systemd[1]: run-u1298.service: Failed with result 'exit-code'.
+
+===== 10. RECENT TRANSIENT UNIT JOURNALS =====
+
+===== 11. RECENT /TMP FILES =====
+2026-10-08 07:13:01.0375030080      41093 /tmp/oci-update-failure-audit-20261008-071300.txt
+
+===== 12. RELEASE-URL PATTERNS =====
+/opt/oci-zero-cost-lab/panel/system_updates.py:61:    url = f"https://api.github.com/repos/{repo}/releases/latest"
+/opt/oci-zero-cost-lab/panel/system_updates.py:92:            "url": f"https://github.com/{repo}/releases/latest",
+/opt/oci-zero-cost-lab/panel/system_updates.py:620:                "curl -fsSL https://getcaddy.com "
+
+===== 13. SYSTEMD SERVICE =====
+● oci-linux-lab.service - OCI Linux Lab Panel
+     Loaded: loaded (/etc/systemd/system/oci-linux-lab.service; enabled; vendor preset: enabled)
+     Active: active (running) since Thu 2026-10-08 07:06:07 UTC; 6min ago
+   Main PID: 520815 (python3)
+      Tasks: 1 (limit: 14229)
+     Memory: 200.9M
+        CPU: 5.584s
+     CGroup: /system.slice/oci-linux-lab.service
+             └─520815 /usr/bin/python3 -m panel.server
+
+Oct 08 07:06:07 hhrcfhqf-oracle-cloud systemd[1]: Started OCI Linux Lab Panel.
+Oct 08 07:06:07 hhrcfhqf-oracle-cloud python3[520815]: OCI Linux Lab listening on 127.0.0.1:3000
+
+===== 14. HEALTH =====
+{"ok": true, "service": "oci-linux-lab", "version": "2.0.0-modular"}
+==============================================================
+AUDIT COMPLETE
+
+REPORT:
+/tmp/oci-update-failure-audit-20261008-071300.txt
