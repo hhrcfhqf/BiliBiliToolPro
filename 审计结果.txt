@@ -121,3 +121,4 @@ root@ImmortalWrt:~# ip addr
 root@ImmortalWrt:~# uci show network | grep ipaddr
 network.loopback.ipaddr='127.0.0.1'
 network.lan.ipaddr='192.168.10.1'
+root@ImmortalWrt:~#
