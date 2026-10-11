@@ -1,1852 +1,490 @@
-CADDY FETCH CHAIN READ-ONLY AUDIT
-==============================================================
+ ImmortalWrt 24.10.5, r33805-7c4e882aaf6f
+ -----------------------------------------------------
+root@ImmortalWrt:~# uci show passwall2
+passwall2.CN=shunt_rules
+passwall2.CN.remarks='CN'
+passwall2.CN.domain_list='geosite:cn'
+passwall2.CN.ip_list='geoip:cn'
+passwall2.CN.network='tcp,udp'
+passwall2.CN.group='CN'
+passwall2.CN.inbound='tproxy'
+passwall2.DirectFront=shunt_rules
+passwall2.DirectFront.remarks='DirectFront'
+passwall2.DirectFront.network='tcp,udp'
+passwall2.DirectFront.domain_list='domain:ip233.cn'
+passwall2.DirectFront.group='CN'
+passwall2.ProxyFront=shunt_rules
+passwall2.ProxyFront.remarks='ProxyFront'
+passwall2.ProxyFront.network='tcp,udp'
+passwall2.ProxyFront.domain_list='domain:www.gstatic.com
+domain:ssl.gstatic.com
+domain:fonts.gstatic.com'
+passwall2.ProxyFront.group='CN'
+passwall2.DirectGame=shunt_rules
+passwall2.DirectGame.remarks='DirectGame'
+passwall2.DirectGame.domain_list='# steam直连域名获取国内CDN走国内线路下载
+cm.steampowered.com
+steamserver.net
 
-===== 01. system-update.js =====
-     1  import { api } from "../core/api.js";
-     2  import { esc, showError } from "../core/ui.js";
-     3
-     4  let updateTimer = null;
-     5
-     6  let checking = {};
-     7  let updating = {};
-     8
-     9  const COMPONENTS = [
-    10      {
-    11          key: "singbox",
-    12          icon: "📦",
-    13          title: "sing-box",
-    14      },
-    15      {
-    16          key: "caddy",
-    17          icon: "🌐",
-    18          title: "Caddy",
-    19      },
-    20      {
-    21          key: "ollama",
-    22          icon: "🤖",
-    23          title: "Ollama",
-    24      },
-    25  ];
-    26
-    27  const COMPONENT_NAMES = {
-    28      singbox: "sing-box",
-    29      caddy: "Caddy",
-    30      ollama: "Ollama",
-    31      apt: "Ubuntu / APT",
-    32  };
-    33
-    34
-    35  /* =========================================================
-    36   * 状态显示
-    37   * ========================================================= */
-    38
-    39  function statusText(item) {
-    40
-    41      if (!item) {
-    42          return "";
-    43      }
-    44
-    45      if (item.status === "update_available") {
-    46          return "有新版本";
-    47      }
-    48
-    49      if (item.status === "up_to_date") {
-    50          return "已是最新";
-    51      }
-    52
-    53      if (item.status === "check_failed") {
-    54          return "检查失败";
-    55      }
-    56
-    57      return "";
-    58  }
-    59
-    60
-    61  function statusClass(item) {
-    62
-    63      if (!item) {
-    64          return "";
-    65      }
-    66
-    67      if (item.status === "update_available") {
-    68          return "warn";
-    69      }
-    70
-    71      if (item.status === "check_failed") {
-    72          return "bad";
-    73      }
-    74
-    75      if (item.status === "up_to_date") {
-    76          return "ok";
-    77      }
-    78
-    79      return "";
-    80  }
-    81
-    82
-    83  /* =========================================================
-    84   * 软件模块卡片
-    85   * ========================================================= */
-    86
-    87  function softwareCard(
-    88      item,
-    89      icon,
-    90      title,
-    91      key
-    92  ) {
-    93
-    94      item = item || {};
-    95
-    96      const current =
-    97          item.current || "-";
-    98
-    99      const latest =
-   100          item.latest || "-";
-   101
-   102      const status =
-   103          statusText(item);
-   104
-   105      const statusCls =
-   106          statusClass(item);
-   107
-   108      const isChecking =
-   109          !!checking[key];
-   110
-   111      const isUpdating =
-   112          !!updating[key];
-   113
-   114      const buttonText =
-   115          isChecking
-   116              ? "检查中……"
-   117              : "检查更新";
-   118
-   119      const updateText =
-   120          isUpdating
-   121              ? "更新中……"
-   122              : "更新";
-   123
-   124      return `
-   125          <div
-   126              class="card"
-   127              id="oci-update-card-${esc(key)}"
-   128          >
-   129
-   130              <h3>
-   131                  ${icon} ${esc(title)}
-   132              </h3>
-   133
-   134              <div class="grid">
-   135
-   136                  <div class="stat">
-   137                      <div class="stat-name">
-   138                          当前版本
-   139                      </div>
-   140
-   141                      <div class="stat-value">
-   142                          ${esc(current)}
-   143                      </div>
-   144                  </div>
-   145
-   146                  <div class="stat">
-   147                      <div class="stat-name">
-   148                          最新正式版
-   149                      </div>
-   150
-   151                      <div class="stat-value">
-   152                          ${esc(latest)}
-   153                      </div>
-   154                  </div>
-   155
-   156              </div>
-   157
-   158              ${
-   159                  status
-   160                      ? `
-   161                      <div style="margin-top:12px">
-   162                          <span class="${statusCls}">
-   163                              ${esc(status)}
-   164                          </span>
-   165                      </div>
-   166                      `
-   167                      : ""
-   168              }
-   169
-   170              ${
-   171                  item.error
-   172                      ? `
-   173                      <div
-   174                          class="bad"
-   175                          style="
-   176                              margin-top:10px;
-   177                              white-space:pre-wrap
-   178                          "
-   179                      >
-   180                          ${esc(item.error)}
-   181                      </div>
-   182                      `
-   183                      : ""
-   184              }
-   185
-   186              <div style="
-   187                  margin-top:14px;
-   188                  display:flex;
-   189                  gap:8px;
-   190                  flex-wrap:wrap;
-   191              ">
-   192
-   193                  <button
-   194                      type="button"
-   195                      onclick="checkSystemComponent('${esc(key)}')"
-   196                      ${isChecking || isUpdating ? "disabled" : ""}
-   197                  >
-   198                      ${buttonText}
-   199                  </button>
-   200
-   201                  <button
-   202                      type="button"
-   203                      class="warn"
-   204                      onclick="updateSystemComponent('${esc(key)}')"
-   205                      ${isChecking || isUpdating ? "disabled" : ""}
-   206                  >
-   207                      ${updateText}
-   208                  </button>
-   209
-   210              </div>
-   211
-   212          </div>
-   213      `;
-   214  }
-   215
-   216
-   217  /* =========================================================
-   218   * APT 卡片
-   219   * ========================================================= */
-   220
-   221  function aptCard(apt) {
-   222
-   223      apt = apt || {};
-   224
-   225      const packages =
-   226          Array.isArray(apt.packages)
-   227              ? apt.packages
-   228              : [];
-   229
-   230      const isChecking =
-   231          !!checking.apt;
-   232
-   233      const isUpdating =
-   234          !!updating.apt;
-   235
-   236      return `
-   237          <div
-   238              class="card"
-   239              id="oci-update-card-apt"
-   240          >
-   241
-   242              <h3>
-   243                  🖥 Ubuntu / APT
-   244              </h3>
-   245
-   246              <div class="grid">
-   247
-   248                  <div class="stat">
-   249                      <div class="stat-name">
-   250                          系统
-   251                      </div>
-   252
-   253                      <div class="stat-value">
-   254                          ${esc(
-   255                              apt.ubuntu || "-"
-   256                          )}
-   257                      </div>
-   258                  </div>
-   259
-   260                  <div class="stat">
-   261                      <div class="stat-name">
-   262                          可更新软件包
-   263                      </div>
-   264
-   265                      <div class="stat-value">
-   266                          ${esc(
-   267                              apt.available_packages ?? 0
-   268                          )}
-   269                      </div>
-   270                  </div>
-   271
-   272                  <div class="stat">
-   273                      <div class="stat-name">
-   274                          安全更新
-   275                      </div>
-   276
-   277                      <div class="stat-value">
-   278                          ${esc(
-   279                              apt.security_packages ?? 0
-   280                          )}
-   281                      </div>
-   282                  </div>
-   283
-   284              </div>
-   285
-   286              ${
-   287                  apt.error
-   288                      ? `
-   289                      <div
-   290                          class="bad"
-   291                          style="
-   292                              margin-top:10px;
-   293                              white-space:pre-wrap
-   294                          "
-   295                      >
-   296                          ${esc(apt.error)}
-   297                      </div>
-   298                      `
-   299                      : ""
-   300              }
-   301
-   302              <div style="
-   303                  margin-top:14px;
-   304                  display:flex;
-   305                  gap:8px;
-   306                  flex-wrap:wrap;
-   307              ">
-   308
-   309                  <button
-   310                      type="button"
-   311                      onclick="checkSystemComponent('apt')"
-   312                      ${isChecking || isUpdating ? "disabled" : ""}
-   313                  >
-   314                      ${
-   315                          isChecking
-   316                              ? "检查中……"
-   317                              : "检查更新"
-   318                      }
-   319                  </button>
-   320
-   321                  <button
-   322                      type="button"
-   323                      class="warn"
-   324                      onclick="updateSystemComponent('apt')"
-   325                      ${isChecking || isUpdating ? "disabled" : ""}
-   326                  >
-   327                      ${
-   328                          isUpdating
-   329                              ? "更新中……"
-   330                              : "更新"
-   331                      }
-   332                  </button>
-   333
-   334                  <button
-   335                      type="button"
-   336                      onclick="showAptPackages()"
-   337                      ${isChecking || isUpdating ? "disabled" : ""}
-   338                  >
-   339                      查看更新
-   340                  </button>
-   341
-   342              </div>
-   343
-   344              <div
-   345                  id="oci-apt-packages"
-   346                  style="margin-top:12px"
-   347              ></div>
-   348
-   349          </div>
-   350      `;
-   351  }
-   352
-   353
-   354  /* =========================================================
-   355   * 单模块 API
-   356   *
-   357   * 永远带 component。
-   358   * 不再存在 /api/system/updates 的总检查调用。
-   359   * ========================================================= */
-   360
-   361  async function loadComponent(
-   362      component,
-   363      force = false
-   364  ) {
-   365
-   366      let url =
-   367          "/api/system/updates?component=" +
-   368          encodeURIComponent(component);
-   369
-   370      if (force) {
-   371          url += "&refresh=1";
-   372      }
-   373
-   374      return await api(url);
-   375  }
-   376
-   377
-   378  /* =========================================================
-   379   * 替换单个模块卡片
-   380   * ========================================================= */
-   381
-   382  function replaceComponent(
-   383      component,
-   384      data
-   385  ) {
-   386
-   387      const oldCard =
-   388          document.querySelector(
-   389              "#oci-update-card-" + component
-   390          );
-   391
-   392      if (!oldCard) {
-   393          return;
-   394      }
-   395
-   396      if (component === "apt") {
-   397
-   398          oldCard.outerHTML =
-   399              aptCard(data);
-   400
-   401          return;
-   402      }
-   403
-   404      const meta =
-   405          COMPONENTS.find(
-   406              x => x.key === component
-   407          );
-   408
-   409      if (!meta) {
-   410          return;
-   411      }
-   412
-   413      oldCard.outerHTML =
-   414          softwareCard(
-   415              data,
-   416              meta.icon,
-   417              meta.title,
-   418              component
-   419          );
-   420  }
-   421
-   422
-   423  /* =========================================================
-   424   * 页面初始化
-   425   *
-   426   * 这里不再调用：
-   427   *   /api/system/updates
-   428   *
-   429   * 而是四个模块分别读取自己的缓存。
-   430   * ========================================================= */
-   431
-   432  async function loadInitialComponents() {
-   433
-   434      const box =
-   435          document.querySelector(
-   436              "#oci-system-update"
-   437          );
-   438
-   439      if (!box) {
-   440          return;
-   441      }
-   442
-   443      box.innerHTML = `
-   444
-   445          ${componentLoadingHtml(
-   446              "📦 sing-box"
-   447          )}
-   448
-   449          ${componentLoadingHtml(
-   450              "🖥 Ubuntu / APT"
-   451          )}
-   452
-   453          ${componentLoadingHtml(
-   454              "🌐 Caddy"
-   455          )}
-   456
-   457          ${componentLoadingHtml(
-   458              "🤖 Ollama"
-   459          )}
-   460
-   461      `;
-   462
-   463      /*
-   464       * 四个模块独立读取缓存。
-   465       *
-   466       * 这里使用 Promise.all，
-   467       * 但每个请求仍然是独立的 component。
-   468       *
-   469       * 不会调用总检查接口。
-   470       */
-   471
-   472      const results =
-   473          await Promise.allSettled([
-   474              loadComponent("singbox", false),
-   475              loadComponent("apt", false),
-   476              loadComponent("caddy", false),
-   477              loadComponent("ollama", false),
-   478          ]);
-   479
-   480      if (!document.querySelector("#oci-system-update")) {
-   481          return;
-   482      }
-   483
-   484      const data = {
-   485          singbox: null,
-   486          apt: null,
-   487          caddy: null,
-   488          ollama: null,
-   489      };
-   490
-   491      if (
-   492          results[0].status === "fulfilled"
-   493      ) {
-   494          data.singbox =
-   495              results[0].value;
-   496      }
-   497
-   498      if (
-   499          results[1].status === "fulfilled"
-   500      ) {
-   501          data.apt =
-   502              results[1].value;
-   503      }
-   504
-   505      if (
-   506          results[2].status === "fulfilled"
-   507      ) {
-   508          data.caddy =
-   509              results[2].value;
-   510      }
-   511
-   512      if (
-   513          results[3].status === "fulfilled"
-   514      ) {
-   515          data.ollama =
-   516              results[3].value;
-   517      }
-   518
-   519      renderData(data);
-   520  }
-   521
-   522
-   523  /* =========================================================
-   524   * 加载状态
-   525   * ========================================================= */
-   526
-   527  function componentLoadingHtml(
-   528      title
-   529  ) {
-   530
-   531      return `
-   532          <div class="card">
-   533              <h3>
-   534                  ${esc(title)}
-   535              </h3>
-   536
-   537              <div class="loading">
-   538                  正在读取状态……
-   539              </div>
-   540          </div>
-   541      `;
-   542  }
-   543
-   544
-   545  /* =========================================================
-   546   * 单模块检查
-   547   * ========================================================= */
-   548
-   549  async function checkSystemComponent(
-   550      component
-   551  ) {
-   552
-   553      if (checking[component]) {
-   554          return;
-   555      }
-   556
-   557      if (updating[component]) {
-   558          return;
-   559      }
-   560
-   561      const oldCard =
-   562          document.querySelector(
-   563              "#oci-update-card-" + component
-   564          );
-   565
-   566      if (!oldCard) {
-   567          return;
-   568      }
-   569
-   570      checking[component] = true;
-   571
-   572      const button =
-   573          oldCard.querySelector(
-   574              "button"
-   575          );
-   576
-   577      if (button) {
-   578          button.disabled = true;
-   579          button.textContent =
-   580              "检查中……";
-   581      }
-   582
-   583      try {
-   584
-   585          /*
-   586           * force=true：
-   587           * 只强制检查当前模块。
-   588           */
-   589
-   590          const data =
-   591              await loadComponent(
-   592                  component,
-   593                  true
-   594              );
-   595
-   596          if (!data) {
-   597              return;
-   598          }
-   599
-   600          replaceComponent(
-   601              component,
-   602              data
-   603          );
-   604
-   605      } catch (error) {
-   606
-   607          console.error(
-   608              "system update check:",
-   609              error
-   610          );
-   611
-   612          showError(
-   613              error.message ||
-   614              String(error)
-   615          );
-   616
-   617      } finally {
-   618
-   619          checking[component] = false;
-   620      }
-   621  }
-   622
-   623
-   624  /* =========================================================
-   625   * 单模块更新
-   626   * ========================================================= */
-   627
-   628  async function updateSystemComponent(
-   629      component
-   630  ) {
-   631
-   632      if (checking[component]) {
-   633          return;
-   634      }
-   635
-   636      if (updating[component]) {
-   637          return;
-   638      }
-   639
-   640      const name =
-   641          COMPONENT_NAMES[component] ||
-   642          component;
-   643
-   644      if (
-   645          !window.confirm(
-   646              `确认更新 ${name}？\n\n` +
-   647              `更新操作只针对当前模块，` +
-   648              `不会更新其他模块。`
-   649          )
-   650      ) {
-   651          return;
-   652      }
-   653
-   654      updating[component] = true;
-   655
-   656      const card =
-   657          document.querySelector(
-   658              "#oci-update-card-" + component
-   659          );
-   660
-   661      if (card) {
-   662
-   663          const buttons =
-   664              card.querySelectorAll(
-   665                  "button"
-   666              );
-   667
-   668          buttons.forEach(
-   669              button => {
-   670                  button.disabled = true;
-   671              }
-   672          );
-   673
-   674          const updateButton =
-   675              buttons.length >= 2
-   676                  ? buttons[1]
-   677                  : null;
-   678
-   679          if (updateButton) {
-   680              updateButton.textContent =
-   681                  "更新中……";
-   682          }
-   683      }
-   684
-   685      try {
-   686
-   687          /*
-   688           * 新的独立更新接口。
-   689           *
-   690           * 不再使用旧的：
-   691           * /api/action
-   692           */
-   693
-   694          const result =
-   695              await api(
-   696                  "/api/system/update",
-   697                  {
-   698                      method: "POST",
-   699
-   700                      body: JSON.stringify({
-   701                          component,
-   702                          confirm: "CONFIRM",
-   703                      }),
-   704                  }
-   705              );
-   706
-   707          if (!result) {
-   708              return;
-   709          }
-   710
-   711          if (!result.ok) {
-   712
-   713              throw new Error(
-   714                  result.error ||
-   715                  result.output ||
-   716                  "更新失败"
-   717              );
-   718          }
-   719
-   720          /*
-   721           * 更新完成后：
-   722           *
-   723           * 只重新检查当前模块。
-   724           */
-   725
-   726          const data =
-   727              await loadComponent(
-   728                  component,
-   729                  true
-   730              );
-   731
-   732          if (data) {
-   733
-   734              replaceComponent(
-   735                  component,
-   736                  data
-   737              );
-   738          }
-   739
-   740          if (
-   741              result.output &&
-   742              result.output.includes(
-   743                  "REBOOT_REQUIRED=1"
-   744              )
-   745          ) {
-   746
-   747              alert(
-   748                  `${name} 更新完成。\n\n` +
-   749                  `系统提示需要重启服务器。`
-   750              );
-   751
-   752          } else {
-   753
-   754              alert(
-   755                  `${name} 更新完成。`
-   756              );
-   757          }
-   758
-   759      } catch (error) {
-   760
-   761          console.error(
-   762              "system update:",
-   763              error
-   764          );
-   765
-   766          showError(
-   767              error.message ||
-   768              String(error)
-   769          );
-   770
-   771      } finally {
-   772
-   773          updating[component] = false;
-   774      }
-   775  }
-   776
-   777
-   778  /* =========================================================
-   779   * APT 软件包详情
-   780   *
-   781   * 使用缓存数据。
-   782   * 不主动重新执行 apt 检查。
-   783   * ========================================================= */
-   784
-   785  async function showAptPackages() {
-   786
-   787      const target =
-   788          document.querySelector(
-   789              "#oci-apt-packages"
-   790          );
-   791
-   792      if (!target) {
-   793          return;
-   794      }
-   795
-   796      try {
-   797
-   798          const data =
-   799              await loadComponent(
-   800                  "apt",
-   801                  false
-   802              );
-   803
-   804          if (!data) {
-   805              return;
-   806          }
-   807
-   808          const packages =
-   809              Array.isArray(data.packages)
-   810                  ? data.packages
-   811                  : [];
-   812
-   813          if (!packages.length) {
-   814
-   815              target.innerHTML = `
-   816                  <div style="opacity:.65">
-   817                      当前没有检测到可更新软件包。
-   818                  </div>
-   819              `;
-   820
-   821              return;
-   822          }
-   823
-   824          target.innerHTML = `
-   825              <details open>
-   826
-   827                  <summary style="cursor:pointer">
-   828                      可更新软件包（${packages.length}）
-   829                  </summary>
-   830
-   831                  <pre style="
-   832                      margin-top:10px;
-   833                      white-space:pre-wrap;
-   834                      word-break:break-word;
-   835                      font-size:12px;
-   836                  ">${esc(
-   837                      packages.join("\n")
-   838                  )}</pre>
-   839
-   840              </details>
-   841          `;
-   842
-   843      } catch (error) {
-   844
-   845          showError(
-   846              error.message ||
-   847              String(error)
-   848          );
-   849      }
-   850  }
-   851
-   852
-   853  /* =========================================================
-   854   * 渲染全部卡片
-   855   *
-   856   * 注意：
-   857   * 这里只负责渲染。
-   858   *
-   859   * 不负责检查。
-   860   * ========================================================= */
-   861
-   862  function renderData(data) {
-   863
-   864      const box =
-   865          document.querySelector(
-   866              "#oci-system-update"
-   867          );
-   868
-   869      if (!box) {
-   870          return;
-   871      }
-   872
-   873      box.innerHTML = `
-   874
-   875          ${softwareCard(
-   876              data.singbox,
-   877              "📦",
-   878              "sing-box",
-   879              "singbox"
-   880          )}
-   881
-   882          ${aptCard(
-   883              data.apt
-   884          )}
-   885
-   886          ${softwareCard(
-   887              data.caddy,
-   888              "🌐",
-   889              "Caddy",
-   890              "caddy"
-   891          )}
-   892
-   893          ${softwareCard(
-   894              data.ollama,
-   895              "🤖",
-   896              "Ollama",
-   897              "ollama"
-   898          )}
-   899
-   900      `;
-   901  }
-   902
-   903
-   904  /* =========================================================
-   905   * 每 24 小时重新读取四个模块的缓存
-   906   *
-   907   * 后端负责 24h 缓存。
-   908   * 这里不会强制刷新。
-   909   * ========================================================= */
-   910
-   911  async function refreshAllFromCache() {
-   912
-   913      if (
-   914          !document.querySelector(
-   915              "#oci-system-update"
-   916          )
-   917      ) {
-   918          return;
-   919      }
-   920
-   921      await loadInitialComponents();
-   922  }
-   923
-   924
-   925  /* =========================================================
-   926   * 页面入口
-   927   * ========================================================= */
-   928
-   929  export function renderSystemUpdate() {
-   930
-   931      if (updateTimer) {
-   932
-   933          clearInterval(
-   934              updateTimer
-   935          );
-   936
-   937          updateTimer = null;
-   938      }
-   939
-   940      /*
-   941       * 首次进入：
-   942       *
-   943       * 四个模块分别读取自己的缓存。
-   944       */
-   945
-   946      loadInitialComponents().catch(
-   947          error => {
-   948
-   949              console.error(
-   950                  "system update initial load:",
-   951                  error
-   952              );
-   953
-   954              showError(
-   955                  error.message ||
-   956                  String(error)
-   957              );
-   958          }
-   959      );
-   960
-   961      /*
-   962       * 每 24 小时：
-   963       *
-   964       * 四个模块分别读取自己的缓存。
-   965       *
-   966       * 后端只有在对应模块缓存过期时，
-   967       * 才会重新检查该模块。
-   968       */
-   969
-   970      updateTimer =
-   971          setInterval(
-   972              () => {
-   973
-   974                  if (
-   975                      document.querySelector(
-   976                          "#oci-system-update"
-   977                      )
-   978                  ) {
-   979
-   980                      refreshAllFromCache();
+# steam国内CDN华为云
+steampipe.steamcontent.tnkjmec.com
+# steam国内CDN白山云
+st.dl.eccdnx.com
+st.dl.bscstorage.net
+st.dl.pinyuncloud.com
+# steam国内CDN新流云(原金山云)(支持ipv6)
+dl.steam.clngaa.com
+# steam国内CDN网宿
+cdn.mileweb.cs.steampowered.com.8686c.com
+cdn-ws.content.steamchina.com
+# steam国内CDN腾讯云 (蒸汽中国独占)
+cdn-qc.content.steamchina.com
+# steam国内CDN阿里云(支持ipv6)
+cdn-ali.content.steamchina.com
+xz.pphimalayanrt.com
+lv.queniujq.cn
+alibaba.cdn.steampipe.steamcontent.com
 
-===== 02. api.js =====
-     1  import { showError } from "./ui.js";
-     2
-     3  let CSRF = "";
-     4
-     5  export async function api(url, opt = {}) {
-     6      try {
-     7          opt = {
-     8              credentials: "same-origin",
-     9              ...opt,
-    10              headers: {
-    11                  ...(opt.headers || {})
-    12              }
-    13          };
-    14
-    15          if (opt.method === "POST") {
-    16              opt.headers["Content-Type"] = "application/json";
-    17
-    18              let body = {};
-    19
-    20              if (opt.body) {
-    21                  try {
-    22                      body = JSON.parse(opt.body);
-    23                  } catch (e) {
-    24                      body = {};
-    25                  }
-    26              }
-    27
-    28              body.csrf = CSRF;
-    29              opt.body = JSON.stringify(body);
-    30          }
-    31
-    32          const r = await fetch(url, opt);
-    33
-    34          if (r.status === 401) {
-    35              location = "/login";
-    36              return null;
-    37          }
-    38
-    39          const text = await r.text();
-    40
-    41          let data = null;
-    42
-    43          try {
-    44              data = JSON.parse(text);
-    45          } catch (e) {
-    46              throw new Error(
-    47                  "服务器返回的不是 JSON：HTTP " + r.status
-    48              );
-    49          }
-    50
-    51          if (!r.ok) {
-    52              throw new Error(
-    53                  data.error || ("HTTP " + r.status)
-    54              );
-    55          }
-    56
-    57          return data;
-    58
-    59      } catch (e) {
-    60          console.error(url, e);
-    61
-    62          if (url !== "/api/session") {
-    63              showError(e.message || String(e));
-    64          }
-    65
-    66          return null;
-    67      }
-    68  }
-    69
-    70  export async function initSession() {
-    71      const x = await api("/api/session");
-    72
-    73      if (x && x.csrf) {
-    74          CSRF = x.csrf;
-    75          return true;
-    76      }
-    77
-    78      const y = await api("/api/status");
-    79
-    80      if (y && y.csrf) {
-    81          CSRF = y.csrf;
-    82          return true;
-    83      }
-    84
-    85      return false;
-    86  }
-    87
-    88  export function getCSRF() {
-    89      return CSRF;
-    90  }
+# 国内游戏geosite域名
+geosite:category-games@cn'
+passwall2.DirectGame.ip_list='# steam直连IP
+45.121.184.0/24
+103.10.124.0/23
+103.28.54.0/24
+146.66.152.0/24
+146.66.155.0/24
+153.254.86.0/24
+155.133.224.0/22
+155.133.230.0/24
+155.133.232.0/23
+155.133.234.0/24
+155.133.236.0/22
+155.133.240.0/23
+155.133.244.0/23
+155.133.246.0/24
+155.133.248.0/21
+162.254.192.0/21
+185.25.182.0/23
+190.217.32.0/22
+192.69.96.0/22
+205.196.6.0/24
+208.64.200.0/22
+208.78.164.0/22
+205.185.194.0/24'
+passwall2.DirectGame.network='tcp,udp'
+passwall2.DirectGame.group='CN'
+passwall2.ProxyGame=shunt_rules
+passwall2.ProxyGame.remarks='ProxyGame'
+passwall2.ProxyGame.domain_list='# steam 商店/客服/聊天/网页布局/API/二维码/Google云同步 代理URL
+steamcommunity.com
+www.steamcommunity.com
+store.steampowered.com
+checkout.steampowered.com
+api.steampowered.com
+help.steampowered.com
+login.steampowered.com
+store.akamai.steamstatic.com
+steambroadcast.akamaized.net
+steamvideo-a.akamaihd.net
+steamusercontent-a.akamaihd.net
+steamstore-a.akamaihd.net
+steamcommunity-a.akamaihd.net
+steamcdn-a.akamaihd.net
+steamuserimages-a.akamaihd.net
+community.akamai.steamstatic.com
+avatars.akamai.steamstatic.com
+community.steamstatic.com
+cdn.akamai.steamstatic.com
+avatars.steamstatic.com
+shared.akamai.steamstatic.com
+clan.akamai.steamstatic.com
+cdn.cloudflare.steamstatic.com
+community.cloudflare.steamstatic.com
+store.cloudflare.steamstatic.com
+avatars.cloudflare.steamstatic.com
+clan.cloudflare.steamstatic.com
+shared.cloudflare.steamstatic.com
+steam-chat.com
+steamcloud-ugc.storage.googleapis.com
+steamcloud-eu-ams.storage.googleapis.com
+steamcloud-eu-fra.storage.googleapis.com
+steamcloud-finland.storage.googleapis.com
+steamcloud-saopaulo.storage.googleapis.com
+steamcloud-singapore.storage.googleapis.com
+steamcloud-sydney.storage.googleapis.com
+steamcloud-taiwan.storage.googleapis.com
+steamcloud-eu.storage.googleapis.com
+domain:blizzard.com
+geosite:category-games'
+passwall2.ProxyGame.network='tcp,udp'
+passwall2.ProxyGame.group='CN'
+passwall2.@global[0]=global
+passwall2.@global[0].enabled='1'
+passwall2.@global[0].node_socks_port='1070'
+passwall2.@global[0].localhost_proxy='1'
+passwall2.@global[0].client_proxy='1'
+passwall2.@global[0].socks_enabled='0'
+passwall2.@global[0].acl_enable='1'
+passwall2.@global[0].direct_dns_query_strategy='UseIPv4'
+passwall2.@global[0].remote_dns_protocol='tcp'
+passwall2.@global[0].remote_dns='8.8.8.8'
+passwall2.@global[0].remote_dns_query_strategy='UseIPv4'
+passwall2.@global[0].dns_hosts='cloudflare-dns.com 1.1.1.1
+dns.google.com 8.8.8.8'
+passwall2.@global[0].log_node='1'
+passwall2.@global[0].loglevel='error'
+passwall2.@global[0].auto_lang='zh_cn'
+passwall2.@global[0].node='CNShunt'
+passwall2.@global[0].remote_dns_detour='remote'
+passwall2.@global[0].remote_rewrite_ttl='30'
+passwall2.@global[0].dns_redirect='1'
+passwall2.@global[0].dnsmasq_dns_redirect='1'
+passwall2.@global_haproxy[0]=global_haproxy
+passwall2.@global_haproxy[0].balancing_enable='0'
+passwall2.@global_delay[0]=global_delay
+passwall2.@global_delay[0].start_daemon='1'
+passwall2.@global_delay[0].start_delay='60'
+passwall2.@global_delay[0].restart_week_mode='7'
+passwall2.@global_delay[0].restart_time_mode='3:00'
+passwall2.@global_forwarding[0]=global_forwarding
+passwall2.@global_forwarding[0].tcp_redir_ports='1:65535'
+passwall2.@global_forwarding[0].udp_redir_ports='1:65535'
+passwall2.@global_forwarding[0].accept_icmp='0'
+passwall2.@global_forwarding[0].prefer_nft='1'
+passwall2.@global_forwarding[0].tcp_proxy_way='redirect'
+passwall2.@global_forwarding[0].ipv6_tproxy='0'
+passwall2.@global_xray[0]=global_xray
+passwall2.@global_xray[0].sniffing_override_dest='0'
+passwall2.@global_xray[0].fragment='0'
+passwall2.@global_xray[0].noise='0'
+passwall2.@global_other[0]=global_other
+passwall2.@global_other[0].auto_detection_time='tcping'
+passwall2.@global_other[0].show_node_info='0'
+passwall2.@global_other[0].url_test_url='https://www.google.com/generate_204'
+passwall2.@global_rules[0]=global_rules
+passwall2.@global_rules[0].geosite_update='1'
+passwall2.@global_rules[0].geoip_update='1'
+passwall2.@global_rules[0].v2ray_location_asset='/usr/share/v2ray/'
+passwall2.@global_rules[0].geoip_url='https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat'
+passwall2.@global_rules[0].geosite_url='https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat'
+passwall2.@global_app[0]=global_app
+passwall2.@global_app[0].geoview_file='/usr/bin/geoview'
+passwall2.@global_app[0].xray_file='/usr/bin/xray'
+passwall2.@global_app[0].sing_box_file='/usr/bin/sing-box'
+passwall2.@global_subscribe[0]=global_subscribe
+passwall2.@global_subscribe[0].filter_keyword_mode='1'
+passwall2.@global_singbox[0]=global_singbox
+passwall2.@global_singbox[0].record_fragment='0'
+passwall2.@global_singbox[0].fragment='0'
+passwall2.Iran=shunt_rules
+passwall2.Iran.remarks='Iran'
+passwall2.Iran.network='tcp,udp'
+passwall2.Iran.domain_list='geosite:ir
+#rule-set:remote:https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geosite-ir.srs'
+passwall2.Iran.ip_list='geoip:ir
+#rule-set:remote:https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geoip-ir.srs'
+passwall2.Iran.group='IR'
+passwall2.Russia_Block=shunt_rules
+passwall2.Russia_Block.remarks='Russia_Block'
+passwall2.Russia_Block.network='tcp,udp'
+passwall2.Russia_Block.domain_list='geosite:ru-blocked
+#rule-set:remote:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/refs/heads/release/sing-box/rule-set-geosite/geosite-ru-blocked.srs'
+passwall2.Russia_Block.ip_list='geoip:ru-blocked
+#rule-set:remote:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/refs/heads/release/sing-box/rule-set-geoip/geoip-ru-blocked.srs'
+passwall2.Russia_Block.group='RU'
+passwall2.Russia=shunt_rules
+passwall2.Russia.remarks='Russia'
+passwall2.Russia.network='tcp,udp'
+passwall2.Russia.ip_list='geoip:ru
+#rule-set:remote:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/refs/heads/release/sing-box/rule-set-geoip/geoip-ru.srs'
+passwall2.Russia.group='RU'
+passwall2.iAYSpQ1M=nodes
+passwall2.iAYSpQ1M.tls_allowInsecure='0'
+passwall2.iAYSpQ1M.uuid='c3bbea25-8af4-4d2e-b04d-1c423a39ca20'
+passwall2.iAYSpQ1M.protocol='tuic'
+passwall2.iAYSpQ1M.tuic_udp_relay_mode='native'
+passwall2.iAYSpQ1M.tuic_alpn='h3'
+passwall2.iAYSpQ1M.type='sing-box'
+passwall2.iAYSpQ1M.password='c3bbea25-8af4-4d2e-b04d-1c423a39ca20'
+passwall2.iAYSpQ1M.port='12345'
+passwall2.iAYSpQ1M.tls_serverName='howie.hhrcfhqf.qzz.io'
+passwall2.iAYSpQ1M.address='howie.hhrcfhqf.qzz.io'
+passwall2.iAYSpQ1M.remarks='tu5-hhrcfhqf-us'
+passwall2.iAYSpQ1M.tuic_congestion_control='bbr'
+passwall2.iAYSpQ1M.timeout='60'
+passwall2.iAYSpQ1M.add_mode='1'
+passwall2.nXCxQJLH=nodes
+passwall2.nXCxQJLH.type='sing-box'
+passwall2.nXCxQJLH.tls_allowInsecure='0'
+passwall2.nXCxQJLH.tls_serverName='howie.hhrcfhqf.qzz.io'
+passwall2.nXCxQJLH.port='12346'
+passwall2.nXCxQJLH.protocol='hysteria2'
+passwall2.nXCxQJLH.address='howie.hhrcfhqf.qzz.io'
+passwall2.nXCxQJLH.remarks='hy2-hhrcfhqf-us'
+passwall2.nXCxQJLH.timeout='60'
+passwall2.nXCxQJLH.hysteria2_auth_password='c3bbea25-8af4-4d2e-b04d-1c423a39ca20'
+passwall2.nXCxQJLH.add_mode='1'
+passwall2.CNShunt=nodes
+passwall2.CNShunt.remarks='CN-Shunt'
+passwall2.CNShunt.type='sing-box'
+passwall2.CNShunt.protocol='_shunt'
+passwall2.CNShunt.default_node='heSNftOR'
+passwall2.CNShunt.shunt_group='CN'
+passwall2.CNShunt.PrivateIP='_direct'
+passwall2.CNShunt.write_ipset_direct='1'
+passwall2.CNShunt.enable_geoview_ip='1'
+passwall2.CNShunt.CN='_direct'
+passwall2.heSNftOR=nodes
+passwall2.heSNftOR.tls_allowInsecure='0'
+passwall2.heSNftOR.uuid='4e5fe7df-665f-42d6-a951-f46e8b60c69d'
+passwall2.heSNftOR.protocol='tuic'
+passwall2.heSNftOR.tuic_udp_relay_mode='native'
+passwall2.heSNftOR.tuic_alpn='h3'
+passwall2.heSNftOR.type='sing-box'
+passwall2.heSNftOR.password='qEr9oi4VhDuF5TJYepnQwAe8nkPEBTqK'
+passwall2.heSNftOR.port='12345'
+passwall2.heSNftOR.tls_serverName='hhrcfhqfv.qzz.io'
+passwall2.heSNftOR.address='hhrcfhqfv.qzz.io'
+passwall2.heSNftOR.remarks='tuic'
+passwall2.heSNftOR.tuic_congestion_control='bbr'
+passwall2.heSNftOR.timeout='60'
+passwall2.heSNftOR.add_mode='1'
+root@ImmortalWrt:~# cat /tmp/etc/passwall2/acl/default.json
+{
+  "outbounds": [
+    {
+      "tls": {
+        "enabled": true,
+        "alpn": [
+          "h3"
+        ],
+        "server_name": "hhrcfhqfv.qzz.io",
+        "disable_sni": false
+      },
+      "type": "tuic",
+      "udp_relay_mode": "native",
+      "zero_rtt_handshake": false,
+      "udp_over_stream": false,
+      "server_port": 12345,
+      "congestion_control": "bbr",
+      "password": "qEr9oi4VhDuF5TJYepnQwAe8nkPEBTqK",
+      "domain_resolver": {
+        "server": "local"
+      },
+      "uuid": "4e5fe7df-665f-42d6-a951-f46e8b60c69d",
+      "server": "hhrcfhqfv.qzz.io",
+      "heartbeat": "3s",
+      "detour": "direct",
+      "tag": "default:tuic"
+    },
+    {
+      "type": "direct",
+      "routing_mark": 255,
+      "tag": "direct"
+    }
+  ],
+  "log": {
+    "timestamp": true,
+    "level": "error",
+    "disabled": false,
+    "output": "\/tmp\/etc\/passwall2\/acl\/default.log"
+  },
+  "dns": {
+    "disable_cache": false,
+    "rules": [
+      {
+        "server": "hosts",
+        "domain": [
+          "cloudflare-dns.com",
+          "dns.google.com"
+        ],
+        "query_type": [
+          "A",
+          "AAAA"
+        ]
+      },
+      {
+        "action": "predefined",
+        "query_type": [
+          "AAAA"
+        ],
+        "rcode": "NOERROR",
+        "domain": [
+          "hhrcfhqfv.qzz.io",
+          "howie.hhrcfhqf.qzz.io"
+        ]
+      },
+      {
+        "disable_cache": false,
+        "action": "route",
+        "domain": [
+          "hhrcfhqfv.qzz.io",
+          "howie.hhrcfhqf.qzz.io"
+        ],
+        "server": "direct"
+      },
+      {
+        "action": "predefined",
+        "query_type": [
+          "AAAA"
+        ],
+        "rule_set": [
+          "geosite-cn"
+        ],
+        "rcode": "NOERROR"
+      },
+      {
+        "disable_cache": false,
+        "action": "route",
+        "rule_set": [
+          "geosite-cn"
+        ],
+        "server": "direct"
+      },
+      {
+        "rcode": "NOERROR",
+        "action": "predefined",
+        "query_type": [
+          "AAAA"
+        ]
+      },
+      {
+        "disable_cache": true,
+        "rewrite_ttl": 30,
+        "server": "remote"
+      }
+    ],
+    "independent_cache": false,
+    "strategy": "prefer_ipv6",
+    "servers": [
+      {
+        "tag": "local",
+        "type": "local"
+      },
+      {
+        "type": "udp",
+        "detour": "direct",
+        "server": "127.0.0.1",
+        "server_port": 2003,
+        "tag": "direct"
+      },
+      {
+        "type": "hosts",
+        "predefined": {
+          "dns.google.com": "8.8.8.8",
+          "cloudflare-dns.com": "1.1.1.1"
+        },
+        "tag": "hosts"
+      },
+      {
+        "domain_resolver": "direct",
+        "server_port": 53,
+        "server": "8.8.8.8",
+        "type": "tcp",
+        "detour": "default:tuic",
+        "tag": "remote"
+      }
+    ],
+    "reverse_mapping": true,
+    "disable_expire": false,
+    "final": "remote"
+  },
+  "route": {
+    "rule_set": [
+      {
+        "type": "local",
+        "format": "binary",
+        "path": "\/tmp\/etc\/passwall2_tmp\/singbox_srss\/geosite-cn.srs",
+        "tag": "geosite-cn"
+      },
+      {
+        "type": "local",
+        "format": "binary",
+        "path": "\/tmp\/etc\/passwall2_tmp\/singbox_srss\/geoip-cn.srs",
+        "tag": "geoip-cn"
+      }
+    ],
+    "rules": [
+      {
+        "action": "hijack-dns",
+        "inbound": "dns-in"
+      },
+      {
+        "action": "sniff",
+        "inbound": "dns-in"
+      },
+      {
+        "action": "sniff",
+        "inbound": "socks-in"
+      },
+      {
+        "action": "sniff",
+        "inbound": "redirect_tcp"
+      },
+      {
+        "action": "sniff",
+        "inbound": "tproxy_udp"
+      },
+      {
+        "outbound": "direct",
+        "inbound": [
+          "redirect_tcp",
+          "tproxy_udp"
+        ],
+        "network": [
+          "tcp",
+          "udp"
+        ],
+        "rule_set": [
+          "geosite-cn",
+          "geoip-cn"
+        ],
+        "action": "route"
+      }
+    ],
+    "default_domain_resolver": {
+      "server": "local"
+    },
+    "final": "default:tuic"
+  },
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "type": "socks",
+      "listen_port": 1070,
+      "tag": "socks-in"
+    },
+    {
+      "listen": "::",
+      "type": "redirect",
+      "listen_port": 2001,
+      "tag": "redirect_tcp"
+    },
+    {
+      "type": "tproxy",
+      "network": "udp",
+      "listen": "::",
+      "listen_port": 2001,
+      "tag": "tproxy_udp"
+    },
+    {
+      "listen": "127.0.0.1",
+      "type": "direct",
+      "listen_port": 2002,
+      "tag": "dns-in"
+    }
+  ]
+}
+root@ImmortalWrt:~# /tmp/etc/passwall2/bin/sing-box version
+sing-box version 1.14.0
 
-===== 03. server.py UPDATE REFERENCES =====
-5:from . import common, auth, system, singbox, nodes, security, logs, ai, learning, templates, certificates, system_monitor, system_updates
-128:                    "csrf": self.session().get("csrf","")
-132:                x["csrf"] = self.session().get("csrf","")
-146:            elif p.path=="/api/system/monitor": self.json(system_monitor.collect())
-147:            elif p.path=="/api/system/updates":
-154:                        system_updates.check_component(
-161:                        system_updates.collect(
-175:    def do_POST(self):
-181:                sid,csrf=auth.new_session(); self.send_response(302); self.send_header("Location","/")
-190:            if d.get("csrf") != s.get("csrf"):
-191:                self.json({"error":"csrf validation failed"},403); return
-192:            if p.path in ("/api/ai/chat","/api/learning/complete") and d.get("confirm") in (None,""):
-196:            if d.get("confirm") not in ("CONFIRM","CHANGE-PORT"):
-197:                self.json({"error":"explicit confirmation required"},400); return
-199:            elif p.path=="/api/system/update":
-215:                    system_updates.update_component(
-225:            elif p.path=="/api/security/ufw/delete": self.json(security._v32_ufw_delete(d.get("number"), bool(d.get("confirm_ssh"))))
-
-===== 04. server.py SURROUNDING UPDATE CODE =====
-
-===== server.py lines 1-34 =====
-    1 from __future__ import annotations
-    2 import json, os, secrets, traceback, mimetypes
-    3 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-    4 from urllib.parse import urlparse, parse_qs
-    5 from . import common, auth, system, singbox, nodes, security, logs, ai, learning, templates, certificates, system_monitor, system_updates
-    6 from . import network_opt
-    7 from .raw_subscription import raw_nodes
-    8 
-    9 STATIC_ROOT = os.path.abspath(
-   10     os.path.join(os.path.dirname(__file__), "static")
-   11 )
-   12 
-   13 def cookies(h):
-   14     out={}
-   15     for p in h.get("Cookie","").split(";"):
-   16         if "=" in p:
-   17             k,v=p.strip().split("=",1); out[k]=v
-   18     return out
-   19 
-   20 def static_file(path):
-   21     """
-   22     Serve authenticated panel static assets.
-   23 
-   24     Security:
-   25     - Only files under panel/static are allowed.
-   26     - Path traversal is rejected.
-   27     - Directory access is rejected.
-   28     """
-   29     rel = path[len("/static/"):]
-   30     if not rel:
-   31         return None
-   32 
-   33     # URL path -> filesystem path
-   34     candidate = os.path.abspath(
-
-===== server.py lines 134-175 =====
-  134             elif p.path=="/api/singbox":
-  135                 self.json(singbox.config())
-  136             elif p.path=="/api/nodes":
-  137                 self.json({"nodes":nodes.list_nodes()})
-  138             elif p.path=="/api/subscription":
-  139                 x = subscription_info()
-  140                 x["raw_nodes"] = raw_nodes()
-  141                 self.json(x)
-  142             elif p.path=="/api/security": self.json(security.status())
-  143             elif p.path=="/api/security/ufw": self.json(security._v32_ufw_status())
-  144             elif p.path=="/api/singbox/network": self.json(network_opt.status())
-  145             elif p.path=="/api/certificates": self.json(certificates.status())
-  146             elif p.path=="/api/system/monitor": self.json(system_monitor.collect())
-  147             elif p.path=="/api/system/updates":
-  148                 q = parse_qs(p.query)
-  149                 component = q.get("component", [""])[0].strip().lower()
-  150                 force = q.get("refresh", ["0"])[0] == "1"
-  151 
-  152                 if component:
-  153                     self.json(
-  154                         system_updates.check_component(
-  155                             component,
-  156                             force=force
-  157                         )
-  158                     )
-  159                 else:
-  160                     self.json(
-  161                         system_updates.collect(
-  162                             force=force
-  163                         )
-  164                     )
-  165             elif p.path=="/api/learning/courses": self.json({"courses":learning.courses()})
-  166             elif p.path.startswith("/api/learning/lesson/"):
-  167                 cid=p.path.rsplit("/",1)[1]; c=learning.lesson(cid)
-  168                 self.json({"title":cid,"content":c or "not found"},200 if c else 404)
-  169             elif p.path=="/api/learning/progress": self.json(learning.progress())
-  170             elif p.path=="/api/services": self.json(system.services())
-  171             elif p.path=="/api/ai/status": self.json(ai.status())
-  172             elif p.path=="/api/logs": self.json({"log":logs.get(parse_qs(p.query).get("service",["oci-linux-lab"])[0])})
-  173             else:self.json({"error":"not found"},404)
-  174         except Exception as e:self.json({"error":str(e)},500)
-  175     def do_POST(self):
-
-===== server.py lines 135-176 =====
-  135                 self.json(singbox.config())
-  136             elif p.path=="/api/nodes":
-  137                 self.json({"nodes":nodes.list_nodes()})
-  138             elif p.path=="/api/subscription":
-  139                 x = subscription_info()
-  140                 x["raw_nodes"] = raw_nodes()
-  141                 self.json(x)
-  142             elif p.path=="/api/security": self.json(security.status())
-  143             elif p.path=="/api/security/ufw": self.json(security._v32_ufw_status())
-  144             elif p.path=="/api/singbox/network": self.json(network_opt.status())
-  145             elif p.path=="/api/certificates": self.json(certificates.status())
-  146             elif p.path=="/api/system/monitor": self.json(system_monitor.collect())
-  147             elif p.path=="/api/system/updates":
-  148                 q = parse_qs(p.query)
-  149                 component = q.get("component", [""])[0].strip().lower()
-  150                 force = q.get("refresh", ["0"])[0] == "1"
-  151 
-  152                 if component:
-  153                     self.json(
-  154                         system_updates.check_component(
-  155                             component,
-  156                             force=force
-  157                         )
-  158                     )
-  159                 else:
-  160                     self.json(
-  161                         system_updates.collect(
-  162                             force=force
-  163                         )
-  164                     )
-  165             elif p.path=="/api/learning/courses": self.json({"courses":learning.courses()})
-  166             elif p.path.startswith("/api/learning/lesson/"):
-  167                 cid=p.path.rsplit("/",1)[1]; c=learning.lesson(cid)
-  168                 self.json({"title":cid,"content":c or "not found"},200 if c else 404)
-  169             elif p.path=="/api/learning/progress": self.json(learning.progress())
-  170             elif p.path=="/api/services": self.json(system.services())
-  171             elif p.path=="/api/ai/status": self.json(ai.status())
-  172             elif p.path=="/api/logs": self.json({"log":logs.get(parse_qs(p.query).get("service",["oci-linux-lab"])[0])})
-  173             else:self.json({"error":"not found"},404)
-  174         except Exception as e:self.json({"error":str(e)},500)
-  175     def do_POST(self):
-  176         p=urlparse(self.path)
-
-===== server.py lines 142-183 =====
-  142             elif p.path=="/api/security": self.json(security.status())
-  143             elif p.path=="/api/security/ufw": self.json(security._v32_ufw_status())
-  144             elif p.path=="/api/singbox/network": self.json(network_opt.status())
-  145             elif p.path=="/api/certificates": self.json(certificates.status())
-  146             elif p.path=="/api/system/monitor": self.json(system_monitor.collect())
-  147             elif p.path=="/api/system/updates":
-  148                 q = parse_qs(p.query)
-  149                 component = q.get("component", [""])[0].strip().lower()
-  150                 force = q.get("refresh", ["0"])[0] == "1"
-  151 
-  152                 if component:
-  153                     self.json(
-  154                         system_updates.check_component(
-  155                             component,
-  156                             force=force
-  157                         )
-  158                     )
-  159                 else:
-  160                     self.json(
-  161                         system_updates.collect(
-  162                             force=force
-  163                         )
-  164                     )
-  165             elif p.path=="/api/learning/courses": self.json({"courses":learning.courses()})
-  166             elif p.path.startswith("/api/learning/lesson/"):
-  167                 cid=p.path.rsplit("/",1)[1]; c=learning.lesson(cid)
-  168                 self.json({"title":cid,"content":c or "not found"},200 if c else 404)
-  169             elif p.path=="/api/learning/progress": self.json(learning.progress())
-  170             elif p.path=="/api/services": self.json(system.services())
-  171             elif p.path=="/api/ai/status": self.json(ai.status())
-  172             elif p.path=="/api/logs": self.json({"log":logs.get(parse_qs(p.query).get("service",["oci-linux-lab"])[0])})
-  173             else:self.json({"error":"not found"},404)
-  174         except Exception as e:self.json({"error":str(e)},500)
-  175     def do_POST(self):
-  176         p=urlparse(self.path)
-  177         if p.path=="/login":
-  178             form=parse_qs(self.body_raw().decode(errors="replace"))
-  179             u=form.get("user",[""])[0]; pw=form.get("password",[""])[0]; code=form.get("totp",[""])[0]
-  180             if auth.password_ok(u,pw) and auth.verify_totp(code):
-  181                 sid,csrf=auth.new_session(); self.send_response(302); self.send_header("Location","/")
-  182                 self.send_sid(sid); self.end_headers(); return
-  183             self.page(templates.LOGIN.replace("</form>","</form><p>登录失败</p>").encode(),401); return
-
-===== server.py lines 149-190 =====
-  149                 component = q.get("component", [""])[0].strip().lower()
-  150                 force = q.get("refresh", ["0"])[0] == "1"
-  151 
-  152                 if component:
-  153                     self.json(
-  154                         system_updates.check_component(
-  155                             component,
-  156                             force=force
-  157                         )
-  158                     )
-  159                 else:
-  160                     self.json(
-  161                         system_updates.collect(
-  162                             force=force
-  163                         )
-  164                     )
-  165             elif p.path=="/api/learning/courses": self.json({"courses":learning.courses()})
-  166             elif p.path.startswith("/api/learning/lesson/"):
-  167                 cid=p.path.rsplit("/",1)[1]; c=learning.lesson(cid)
-  168                 self.json({"title":cid,"content":c or "not found"},200 if c else 404)
-  169             elif p.path=="/api/learning/progress": self.json(learning.progress())
-  170             elif p.path=="/api/services": self.json(system.services())
-  171             elif p.path=="/api/ai/status": self.json(ai.status())
-  172             elif p.path=="/api/logs": self.json({"log":logs.get(parse_qs(p.query).get("service",["oci-linux-lab"])[0])})
-  173             else:self.json({"error":"not found"},404)
-  174         except Exception as e:self.json({"error":str(e)},500)
-  175     def do_POST(self):
-  176         p=urlparse(self.path)
-  177         if p.path=="/login":
-  178             form=parse_qs(self.body_raw().decode(errors="replace"))
-  179             u=form.get("user",[""])[0]; pw=form.get("password",[""])[0]; code=form.get("totp",[""])[0]
-  180             if auth.password_ok(u,pw) and auth.verify_totp(code):
-  181                 sid,csrf=auth.new_session(); self.send_response(302); self.send_header("Location","/")
-  182                 self.send_sid(sid); self.end_headers(); return
-  183             self.page(templates.LOGIN.replace("</form>","</form><p>登录失败</p>").encode(),401); return
-  184         if p.path=="/logout":
-  185             auth.logout(self.sid() or ""); self.send_response(204); self.end_headers(); return
-  186         s=self.need()
-  187         if not s:return
-  188         try:
-  189             d=self.body()
-  190             if d.get("csrf") != s.get("csrf"):
-
-===== server.py lines 184-225 =====
-  184         if p.path=="/logout":
-  185             auth.logout(self.sid() or ""); self.send_response(204); self.end_headers(); return
-  186         s=self.need()
-  187         if not s:return
-  188         try:
-  189             d=self.body()
-  190             if d.get("csrf") != s.get("csrf"):
-  191                 self.json({"error":"csrf validation failed"},403); return
-  192             if p.path in ("/api/ai/chat","/api/learning/complete") and d.get("confirm") in (None,""):
-  193                 if p.path=="/api/ai/chat": self.json(ai.chat(d.get("messages",[])))
-  194                 else: self.json({"progress":learning.mark(str(d.get("id","")))})
-  195                 return
-  196             if d.get("confirm") not in ("CONFIRM","CHANGE-PORT"):
-  197                 self.json({"error":"explicit confirmation required"},400); return
-  198             if p.path=="/api/ai/chat": self.json(ai.chat(d.get("messages",[])))
-  199             elif p.path=="/api/system/update":
-  200                 component = str(d.get("component", "")).strip().lower()
-  201 
-  202                 if component not in (
-  203                     "singbox",
-  204                     "caddy",
-  205                     "ollama",
-  206                     "apt",
-  207                 ):
-  208                     self.json(
-  209                         {"error": "unknown update component"},
-  210                         400
-  211                     )
-  212                     return
-  213 
-  214                 self.json(
-  215                     system_updates.update_component(
-  216                         component
-  217                     )
-  218                 )
-  219 
-  220             elif p.path=="/api/singbox/restart": self.json(singbox.restart())
-  221             elif p.path=="/api/node/port": self.json(nodes.change_port(d.get("index"),d.get("port")))
-  222             elif p.path=="/api/certificates/issue": self.json(certificates.issue())
-  223             elif p.path=="/api/security/ufw/add": self.json(security._v32_ufw_add(d))
-  224             elif p.path=="/api/security/ufw/modify": self.json(security._v32_ufw_modify(d))
-  225             elif p.path=="/api/security/ufw/delete": self.json(security._v32_ufw_delete(d.get("number"), bool(d.get("confirm_ssh"))))
-
-===== server.py lines 187-228 =====
-  187         if not s:return
-  188         try:
-  189             d=self.body()
-  190             if d.get("csrf") != s.get("csrf"):
-  191                 self.json({"error":"csrf validation failed"},403); return
-  192             if p.path in ("/api/ai/chat","/api/learning/complete") and d.get("confirm") in (None,""):
-  193                 if p.path=="/api/ai/chat": self.json(ai.chat(d.get("messages",[])))
-  194                 else: self.json({"progress":learning.mark(str(d.get("id","")))})
-  195                 return
-  196             if d.get("confirm") not in ("CONFIRM","CHANGE-PORT"):
-  197                 self.json({"error":"explicit confirmation required"},400); return
-  198             if p.path=="/api/ai/chat": self.json(ai.chat(d.get("messages",[])))
-  199             elif p.path=="/api/system/update":
-  200                 component = str(d.get("component", "")).strip().lower()
-  201 
-  202                 if component not in (
-  203                     "singbox",
-  204                     "caddy",
-  205                     "ollama",
-  206                     "apt",
-  207                 ):
-  208                     self.json(
-  209                         {"error": "unknown update component"},
-  210                         400
-  211                     )
-  212                     return
-  213 
-  214                 self.json(
-  215                     system_updates.update_component(
-  216                         component
-  217                     )
-  218                 )
-  219 
-  220             elif p.path=="/api/singbox/restart": self.json(singbox.restart())
-  221             elif p.path=="/api/node/port": self.json(nodes.change_port(d.get("index"),d.get("port")))
-  222             elif p.path=="/api/certificates/issue": self.json(certificates.issue())
-  223             elif p.path=="/api/security/ufw/add": self.json(security._v32_ufw_add(d))
-  224             elif p.path=="/api/security/ufw/modify": self.json(security._v32_ufw_modify(d))
-  225             elif p.path=="/api/security/ufw/delete": self.json(security._v32_ufw_delete(d.get("number"), bool(d.get("confirm_ssh"))))
-  226             elif p.path=="/api/security/ufw/enable": self.json(security._v32_ufw_enable())
-  227             elif p.path=="/api/security/ufw/disable": self.json(security._v32_ufw_disable())
-  228             elif p.path=="/api/action":
-
-===== server.py lines 203-244 =====
-  203                     "singbox",
-  204                     "caddy",
-  205                     "ollama",
-  206                     "apt",
-  207                 ):
-  208                     self.json(
-  209                         {"error": "unknown update component"},
-  210                         400
-  211                     )
-  212                     return
-  213 
-  214                 self.json(
-  215                     system_updates.update_component(
-  216                         component
-  217                     )
-  218                 )
-  219 
-  220             elif p.path=="/api/singbox/restart": self.json(singbox.restart())
-  221             elif p.path=="/api/node/port": self.json(nodes.change_port(d.get("index"),d.get("port")))
-  222             elif p.path=="/api/certificates/issue": self.json(certificates.issue())
-  223             elif p.path=="/api/security/ufw/add": self.json(security._v32_ufw_add(d))
-  224             elif p.path=="/api/security/ufw/modify": self.json(security._v32_ufw_modify(d))
-  225             elif p.path=="/api/security/ufw/delete": self.json(security._v32_ufw_delete(d.get("number"), bool(d.get("confirm_ssh"))))
-  226             elif p.path=="/api/security/ufw/enable": self.json(security._v32_ufw_enable())
-  227             elif p.path=="/api/security/ufw/disable": self.json(security._v32_ufw_disable())
-  228             elif p.path=="/api/action":
-  229                 a=d.get("action")
-  230                 if a=="singbox-update": self.json(singbox.update())
-  231                 elif a=="system-update": self.json(system.update_system())
-  232                 else:self.json({"error":"unknown action"},400)
-  233             else:self.json({"error":"not found"},404)
-  234         except Exception as e:self.json({"error":str(e)},500)
-  235     def body_raw(self):
-  236         n=int(self.headers.get("Content-Length","0")); return self.rfile.read(n)
-  237 
-  238 def subscription_info():
-  239     d=common.parse_env(); tok=d.get("SUB_TOKEN") or d.get("SUBSCRIPTION_TOKEN") or d.get("CLASH_TOKEN") or d.get("PANEL_SUB_TOKEN")
-  240     return {"host":common.public_host(),"token_present":bool(tok),"url":f"/sub/{tok}" if tok else ""}
-  241 
-  242 def yamlq(s):
-  243     return "'" + str(s).replace("'","''") + "'"
-  244 
-
-===== 05. ACTIONS.JS =====
-     1  import { api } from "../core/api.js";
-     2
-     3  export async function confirmAction(action) {
-     4      let message = "确认执行此操作？";
-     5
-     6      if (action === "singbox-update") {
-     7          message = "确认更新 sing-box？";
-     8      }
-     9
-    10      if (action === "system-update") {
-    11          message = "确认更新 Ubuntu / APT？";
-    12      }
-    13
-    14      if (!window.confirm(message)) {
-    15          return;
-    16      }
-    17
-    18      const x = await api("/api/action", {
-    19          method: "POST",
-    20          body: JSON.stringify({
-    21              action,
-    22              confirm: "CONFIRM"
-    23          })
-    24      });
-    25
-    26      if (x) {
-    27          /*
-    28           * 不再整页 reload。
-    29           *
-    30           * 系统更新页面由 system-update.js
-    31           * 自己重新读取当前模块。
-    32           */
-    33          if (
-    34              action === "singbox-update" ||
-    35              action === "system-update"
-    36          ) {
-    37              if (
-    38                  typeof window.checkSystemUpdates ===
-    39                  "function"
-    40              ) {
-    41                  await window.checkSystemUpdates(true);
-    42              }
-    43
-    44              return;
-    45          }
-    46      }
-    47  }
-    48
-    49  export async function logout() {
-    50      await api("/api/action", {
-    51          method: "POST",
-    52          body: JSON.stringify({
-    53              action: "logout"
-    54          })
-    55      });
-    56
-    57      location = "/login";
-    58  }
-    59
-    60  window.confirmAction = confirmAction;
-    61  window.logout = logout;
-
-===== 06. CURRENT PANEL LOG =====
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     self.finish_request(request, client_address)
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     self.RequestHandlerClass(request, client_address, self)
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     self.handle()
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     self.handle_one_request()
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     method()
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     except Exception as e:self.json({"error":str(e)},500)
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     self.flush_headers()
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     self.wfile.write(b"".join(self._headers_buffer))
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:42:43 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]: Exception occurred during processing of request from ('127.0.0.1', 53776)
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]: Traceback (most recent call last):
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 214, in do_POST
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.json(
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]: During handling of the above exception, another exception occurred:
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]: Traceback (most recent call last):
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.finish_request(request, client_address)
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.RequestHandlerClass(request, client_address, self)
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.handle()
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.handle_one_request()
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     method()
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     except Exception as e:self.json({"error":str(e)},500)
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.flush_headers()
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self.wfile.write(b"".join(self._headers_buffer))
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]: Exception occurred during processing of request from ('127.0.0.1', 53788)
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]: Traceback (most recent call last):
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 214, in do_POST
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.json(
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]: During handling of the above exception, another exception occurred:
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]: Traceback (most recent call last):
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.finish_request(request, client_address)
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.RequestHandlerClass(request, client_address, self)
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.handle()
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.handle_one_request()
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     method()
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     except Exception as e:self.json({"error":str(e)},500)
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.flush_headers()
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self.wfile.write(b"".join(self._headers_buffer))
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]: Exception occurred during processing of request from ('127.0.0.1', 48074)
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]: Traceback (most recent call last):
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 214, in do_POST
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.json(
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]: During handling of the above exception, another exception occurred:
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]: Traceback (most recent call last):
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.finish_request(request, client_address)
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.RequestHandlerClass(request, client_address, self)
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.handle()
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.handle_one_request()
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     method()
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     except Exception as e:self.json({"error":str(e)},500)
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.flush_headers()
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self.wfile.write(b"".join(self._headers_buffer))
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]: Exception occurred during processing of request from ('127.0.0.1', 48080)
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]: Traceback (most recent call last):
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 214, in do_POST
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.json(
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]: During handling of the above exception, another exception occurred:
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]: Traceback (most recent call last):
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.finish_request(request, client_address)
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.RequestHandlerClass(request, client_address, self)
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.handle()
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.handle_one_request()
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     method()
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     except Exception as e:self.json({"error":str(e)},500)
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.flush_headers()
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self.wfile.write(b"".join(self._headers_buffer))
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]:     self._sock.sendall(b)
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud python3[520815]: ----------------------------------------
-Oct 08 07:48:57 hhrcfhqf-oracle-cloud systemd[1]: Stopping OCI Linux Lab Panel...
-Oct 08 07:48:57 hhrcfhqf-oracle-cloud systemd[1]: oci-linux-lab.service: Deactivated successfully.
-Oct 08 07:48:57 hhrcfhqf-oracle-cloud systemd[1]: Stopped OCI Linux Lab Panel.
-Oct 08 07:48:57 hhrcfhqf-oracle-cloud systemd[1]: oci-linux-lab.service: Consumed 22.895s CPU time.
-Oct 08 07:48:57 hhrcfhqf-oracle-cloud systemd[1]: Started OCI Linux Lab Panel.
-Oct 08 07:48:57 hhrcfhqf-oracle-cloud python3[523016]: OCI Linux Lab listening on 127.0.0.1:3000
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]: ----------------------------------------
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]: Exception occurred during processing of request from ('127.0.0.1', 38072)
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]: Traceback (most recent call last):
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 214, in do_POST
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.json(
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self._sock.sendall(b)
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]: During handling of the above exception, another exception occurred:
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]: Traceback (most recent call last):
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.finish_request(request, client_address)
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.RequestHandlerClass(request, client_address, self)
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.handle()
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.handle_one_request()
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     method()
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     except Exception as e:self.json({"error":str(e)},500)
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.flush_headers()
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self.wfile.write(b"".join(self._headers_buffer))
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]:     self._sock.sendall(b)
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud python3[523016]: ----------------------------------------
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]: ----------------------------------------
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]: Exception occurred during processing of request from ('127.0.0.1', 38086)
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]: Traceback (most recent call last):
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 214, in do_POST
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.json(
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self._sock.sendall(b)
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]: During handling of the above exception, another exception occurred:
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]: Traceback (most recent call last):
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.finish_request(request, client_address)
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.RequestHandlerClass(request, client_address, self)
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.handle()
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.handle_one_request()
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     method()
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     except Exception as e:self.json({"error":str(e)},500)
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.flush_headers()
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self.wfile.write(b"".join(self._headers_buffer))
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]:     self._sock.sendall(b)
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud python3[523016]: ----------------------------------------
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]: ----------------------------------------
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]: Exception occurred during processing of request from ('127.0.0.1', 43396)
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]: Traceback (most recent call last):
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 214, in do_POST
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.json(
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self._sock.sendall(b)
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]: During handling of the above exception, another exception occurred:
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]: Traceback (most recent call last):
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.finish_request(request, client_address)
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.RequestHandlerClass(request, client_address, self)
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.handle()
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.handle_one_request()
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     method()
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     except Exception as e:self.json({"error":str(e)},500)
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.flush_headers()
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self.wfile.write(b"".join(self._headers_buffer))
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]:     self._sock.sendall(b)
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud python3[523016]: ----------------------------------------
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]: ----------------------------------------
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]: Exception occurred during processing of request from ('127.0.0.1', 33178)
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]: Traceback (most recent call last):
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 214, in do_POST
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.json(
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self._sock.sendall(b)
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]: During handling of the above exception, another exception occurred:
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]: Traceback (most recent call last):
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.finish_request(request, client_address)
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.RequestHandlerClass(request, client_address, self)
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 747, in __init__
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.handle()
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.handle_one_request()
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     method()
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 234, in do_POST
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     except Exception as e:self.json({"error":str(e)},500)
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/opt/oci-zero-cost-lab/panel/server.py", line 74, in json
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.end_headers(); self.wfile.write(b)
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 535, in end_headers
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.flush_headers()
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/http/server.py", line 539, in flush_headers
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self.wfile.write(b"".join(self._headers_buffer))
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]:     self._sock.sendall(b)
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]: BrokenPipeError: [Errno 32] Broken pipe
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud python3[523016]: ----------------------------------------
-
-===== 07. TRANSIENT UPDATE UNITS =====
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
-Oct 08 07:45:11 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
-Oct 08 07:45:17 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
-Oct 08 07:47:19 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
-Oct 08 07:47:24 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
-Oct 08 07:49:46 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
-Oct 08 07:49:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1308.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
-Oct 08 07:49:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1308.service: Failed with result 'exit-code'.
-Oct 08 07:52:42 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
-Oct 08 07:52:43 hhrcfhqf-oracle-cloud systemd[1]: run-u1309.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
-Oct 08 07:52:43 hhrcfhqf-oracle-cloud systemd[1]: run-u1309.service: Failed with result 'exit-code'.
-Oct 08 07:56:32 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
-Oct 08 07:56:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
-Oct 08 07:56:39 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1310.service: Main process exited, code=exited, status=1/FAILURE
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1310.service: Failed with result 'exit-code'.
-Oct 08 07:56:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1310.service: Consumed 1.057s CPU time.
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1311.service: Deactivated successfully.
-Oct 08 07:56:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1311.service: Consumed 1.050s CPU time.
-Oct 08 07:58:32 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
-Oct 08 07:58:38 hhrcfhqf-oracle-cloud systemd[1]: Started /opt/oci-zero-cost-lab/scripts/caddy-update.
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Main process exited, code=killed, status=9/KILL
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: caddy.service: Failed with result 'timeout'.
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1312.service: Main process exited, code=exited, status=1/FAILURE
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1312.service: Failed with result 'exit-code'.
-Oct 08 07:58:45 hhrcfhqf-oracle-cloud systemd[1]: run-u1312.service: Consumed 1.061s CPU time.
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1313.service: Deactivated successfully.
-Oct 08 07:58:47 hhrcfhqf-oracle-cloud systemd[1]: run-u1313.service: Consumed 1.040s CPU time.
-
-===== 08. CURRENT CADDY =====
-v2.11.4 h1:XKxkMTgNSizEvKG6QHue6cAsFOteU2qA61w2tKkCWi0=
-active
-
-===== 09. PANEL HEALTH =====
-{"ok": true, "service": "oci-linux-lab", "version": "2.0.0-modular"}
-==============================================================
+Environment: go1.26.7 linux/arm64
+Tags: with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,with_cloudflared,with_naive_outbound,with_usbip,with_openvpn,with_openconnect,badlinkname,tfogo_checklinkname0,with_musl
+Revision: 0b8995879f29a9b98ee027bc17b75e101445b238
+CGO: enabled
+root@ImmortalWrt:~# opkg list-installed | grep -iE "passwall|sing-box|xray"
+luci-app-passwall2 - 26.9.12-r2
+luci-i18n-passwall2-zh-cn - 26.9.12
+sing-box - 1.12.25-r1
+xray-core - 25.2.21-r1
+root@ImmortalWrt:~#
