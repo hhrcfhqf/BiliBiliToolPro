@@ -1,490 +1,123 @@
- ImmortalWrt 24.10.5, r33805-7c4e882aaf6f
- -----------------------------------------------------
-root@ImmortalWrt:~# uci show passwall2
-passwall2.CN=shunt_rules
-passwall2.CN.remarks='CN'
-passwall2.CN.domain_list='geosite:cn'
-passwall2.CN.ip_list='geoip:cn'
-passwall2.CN.network='tcp,udp'
-passwall2.CN.group='CN'
-passwall2.CN.inbound='tproxy'
-passwall2.DirectFront=shunt_rules
-passwall2.DirectFront.remarks='DirectFront'
-passwall2.DirectFront.network='tcp,udp'
-passwall2.DirectFront.domain_list='domain:ip233.cn'
-passwall2.DirectFront.group='CN'
-passwall2.ProxyFront=shunt_rules
-passwall2.ProxyFront.remarks='ProxyFront'
-passwall2.ProxyFront.network='tcp,udp'
-passwall2.ProxyFront.domain_list='domain:www.gstatic.com
-domain:ssl.gstatic.com
-domain:fonts.gstatic.com'
-passwall2.ProxyFront.group='CN'
-passwall2.DirectGame=shunt_rules
-passwall2.DirectGame.remarks='DirectGame'
-passwall2.DirectGame.domain_list='# steam直连域名获取国内CDN走国内线路下载
-cm.steampowered.com
-steamserver.net
-
-# steam国内CDN华为云
-steampipe.steamcontent.tnkjmec.com
-# steam国内CDN白山云
-st.dl.eccdnx.com
-st.dl.bscstorage.net
-st.dl.pinyuncloud.com
-# steam国内CDN新流云(原金山云)(支持ipv6)
-dl.steam.clngaa.com
-# steam国内CDN网宿
-cdn.mileweb.cs.steampowered.com.8686c.com
-cdn-ws.content.steamchina.com
-# steam国内CDN腾讯云 (蒸汽中国独占)
-cdn-qc.content.steamchina.com
-# steam国内CDN阿里云(支持ipv6)
-cdn-ali.content.steamchina.com
-xz.pphimalayanrt.com
-lv.queniujq.cn
-alibaba.cdn.steampipe.steamcontent.com
-
-# 国内游戏geosite域名
-geosite:category-games@cn'
-passwall2.DirectGame.ip_list='# steam直连IP
-45.121.184.0/24
-103.10.124.0/23
-103.28.54.0/24
-146.66.152.0/24
-146.66.155.0/24
-153.254.86.0/24
-155.133.224.0/22
-155.133.230.0/24
-155.133.232.0/23
-155.133.234.0/24
-155.133.236.0/22
-155.133.240.0/23
-155.133.244.0/23
-155.133.246.0/24
-155.133.248.0/21
-162.254.192.0/21
-185.25.182.0/23
-190.217.32.0/22
-192.69.96.0/22
-205.196.6.0/24
-208.64.200.0/22
-208.78.164.0/22
-205.185.194.0/24'
-passwall2.DirectGame.network='tcp,udp'
-passwall2.DirectGame.group='CN'
-passwall2.ProxyGame=shunt_rules
-passwall2.ProxyGame.remarks='ProxyGame'
-passwall2.ProxyGame.domain_list='# steam 商店/客服/聊天/网页布局/API/二维码/Google云同步 代理URL
-steamcommunity.com
-www.steamcommunity.com
-store.steampowered.com
-checkout.steampowered.com
-api.steampowered.com
-help.steampowered.com
-login.steampowered.com
-store.akamai.steamstatic.com
-steambroadcast.akamaized.net
-steamvideo-a.akamaihd.net
-steamusercontent-a.akamaihd.net
-steamstore-a.akamaihd.net
-steamcommunity-a.akamaihd.net
-steamcdn-a.akamaihd.net
-steamuserimages-a.akamaihd.net
-community.akamai.steamstatic.com
-avatars.akamai.steamstatic.com
-community.steamstatic.com
-cdn.akamai.steamstatic.com
-avatars.steamstatic.com
-shared.akamai.steamstatic.com
-clan.akamai.steamstatic.com
-cdn.cloudflare.steamstatic.com
-community.cloudflare.steamstatic.com
-store.cloudflare.steamstatic.com
-avatars.cloudflare.steamstatic.com
-clan.cloudflare.steamstatic.com
-shared.cloudflare.steamstatic.com
-steam-chat.com
-steamcloud-ugc.storage.googleapis.com
-steamcloud-eu-ams.storage.googleapis.com
-steamcloud-eu-fra.storage.googleapis.com
-steamcloud-finland.storage.googleapis.com
-steamcloud-saopaulo.storage.googleapis.com
-steamcloud-singapore.storage.googleapis.com
-steamcloud-sydney.storage.googleapis.com
-steamcloud-taiwan.storage.googleapis.com
-steamcloud-eu.storage.googleapis.com
-domain:blizzard.com
-geosite:category-games'
-passwall2.ProxyGame.network='tcp,udp'
-passwall2.ProxyGame.group='CN'
-passwall2.@global[0]=global
-passwall2.@global[0].enabled='1'
-passwall2.@global[0].node_socks_port='1070'
-passwall2.@global[0].localhost_proxy='1'
-passwall2.@global[0].client_proxy='1'
-passwall2.@global[0].socks_enabled='0'
-passwall2.@global[0].acl_enable='1'
-passwall2.@global[0].direct_dns_query_strategy='UseIPv4'
-passwall2.@global[0].remote_dns_protocol='tcp'
-passwall2.@global[0].remote_dns='8.8.8.8'
-passwall2.@global[0].remote_dns_query_strategy='UseIPv4'
-passwall2.@global[0].dns_hosts='cloudflare-dns.com 1.1.1.1
-dns.google.com 8.8.8.8'
-passwall2.@global[0].log_node='1'
-passwall2.@global[0].loglevel='error'
-passwall2.@global[0].auto_lang='zh_cn'
-passwall2.@global[0].node='CNShunt'
-passwall2.@global[0].remote_dns_detour='remote'
-passwall2.@global[0].remote_rewrite_ttl='30'
-passwall2.@global[0].dns_redirect='1'
-passwall2.@global[0].dnsmasq_dns_redirect='1'
-passwall2.@global_haproxy[0]=global_haproxy
-passwall2.@global_haproxy[0].balancing_enable='0'
-passwall2.@global_delay[0]=global_delay
-passwall2.@global_delay[0].start_daemon='1'
-passwall2.@global_delay[0].start_delay='60'
-passwall2.@global_delay[0].restart_week_mode='7'
-passwall2.@global_delay[0].restart_time_mode='3:00'
-passwall2.@global_forwarding[0]=global_forwarding
-passwall2.@global_forwarding[0].tcp_redir_ports='1:65535'
-passwall2.@global_forwarding[0].udp_redir_ports='1:65535'
-passwall2.@global_forwarding[0].accept_icmp='0'
-passwall2.@global_forwarding[0].prefer_nft='1'
-passwall2.@global_forwarding[0].tcp_proxy_way='redirect'
-passwall2.@global_forwarding[0].ipv6_tproxy='0'
-passwall2.@global_xray[0]=global_xray
-passwall2.@global_xray[0].sniffing_override_dest='0'
-passwall2.@global_xray[0].fragment='0'
-passwall2.@global_xray[0].noise='0'
-passwall2.@global_other[0]=global_other
-passwall2.@global_other[0].auto_detection_time='tcping'
-passwall2.@global_other[0].show_node_info='0'
-passwall2.@global_other[0].url_test_url='https://www.google.com/generate_204'
-passwall2.@global_rules[0]=global_rules
-passwall2.@global_rules[0].geosite_update='1'
-passwall2.@global_rules[0].geoip_update='1'
-passwall2.@global_rules[0].v2ray_location_asset='/usr/share/v2ray/'
-passwall2.@global_rules[0].geoip_url='https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat'
-passwall2.@global_rules[0].geosite_url='https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat'
-passwall2.@global_app[0]=global_app
-passwall2.@global_app[0].geoview_file='/usr/bin/geoview'
-passwall2.@global_app[0].xray_file='/usr/bin/xray'
-passwall2.@global_app[0].sing_box_file='/usr/bin/sing-box'
-passwall2.@global_subscribe[0]=global_subscribe
-passwall2.@global_subscribe[0].filter_keyword_mode='1'
-passwall2.@global_singbox[0]=global_singbox
-passwall2.@global_singbox[0].record_fragment='0'
-passwall2.@global_singbox[0].fragment='0'
-passwall2.Iran=shunt_rules
-passwall2.Iran.remarks='Iran'
-passwall2.Iran.network='tcp,udp'
-passwall2.Iran.domain_list='geosite:ir
-#rule-set:remote:https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geosite-ir.srs'
-passwall2.Iran.ip_list='geoip:ir
-#rule-set:remote:https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geoip-ir.srs'
-passwall2.Iran.group='IR'
-passwall2.Russia_Block=shunt_rules
-passwall2.Russia_Block.remarks='Russia_Block'
-passwall2.Russia_Block.network='tcp,udp'
-passwall2.Russia_Block.domain_list='geosite:ru-blocked
-#rule-set:remote:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/refs/heads/release/sing-box/rule-set-geosite/geosite-ru-blocked.srs'
-passwall2.Russia_Block.ip_list='geoip:ru-blocked
-#rule-set:remote:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/refs/heads/release/sing-box/rule-set-geoip/geoip-ru-blocked.srs'
-passwall2.Russia_Block.group='RU'
-passwall2.Russia=shunt_rules
-passwall2.Russia.remarks='Russia'
-passwall2.Russia.network='tcp,udp'
-passwall2.Russia.ip_list='geoip:ru
-#rule-set:remote:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/refs/heads/release/sing-box/rule-set-geoip/geoip-ru.srs'
-passwall2.Russia.group='RU'
-passwall2.iAYSpQ1M=nodes
-passwall2.iAYSpQ1M.tls_allowInsecure='0'
-passwall2.iAYSpQ1M.uuid='c3bbea25-8af4-4d2e-b04d-1c423a39ca20'
-passwall2.iAYSpQ1M.protocol='tuic'
-passwall2.iAYSpQ1M.tuic_udp_relay_mode='native'
-passwall2.iAYSpQ1M.tuic_alpn='h3'
-passwall2.iAYSpQ1M.type='sing-box'
-passwall2.iAYSpQ1M.password='c3bbea25-8af4-4d2e-b04d-1c423a39ca20'
-passwall2.iAYSpQ1M.port='12345'
-passwall2.iAYSpQ1M.tls_serverName='howie.hhrcfhqf.qzz.io'
-passwall2.iAYSpQ1M.address='howie.hhrcfhqf.qzz.io'
-passwall2.iAYSpQ1M.remarks='tu5-hhrcfhqf-us'
-passwall2.iAYSpQ1M.tuic_congestion_control='bbr'
-passwall2.iAYSpQ1M.timeout='60'
-passwall2.iAYSpQ1M.add_mode='1'
-passwall2.nXCxQJLH=nodes
-passwall2.nXCxQJLH.type='sing-box'
-passwall2.nXCxQJLH.tls_allowInsecure='0'
-passwall2.nXCxQJLH.tls_serverName='howie.hhrcfhqf.qzz.io'
-passwall2.nXCxQJLH.port='12346'
-passwall2.nXCxQJLH.protocol='hysteria2'
-passwall2.nXCxQJLH.address='howie.hhrcfhqf.qzz.io'
-passwall2.nXCxQJLH.remarks='hy2-hhrcfhqf-us'
-passwall2.nXCxQJLH.timeout='60'
-passwall2.nXCxQJLH.hysteria2_auth_password='c3bbea25-8af4-4d2e-b04d-1c423a39ca20'
-passwall2.nXCxQJLH.add_mode='1'
-passwall2.CNShunt=nodes
-passwall2.CNShunt.remarks='CN-Shunt'
-passwall2.CNShunt.type='sing-box'
-passwall2.CNShunt.protocol='_shunt'
-passwall2.CNShunt.default_node='heSNftOR'
-passwall2.CNShunt.shunt_group='CN'
-passwall2.CNShunt.PrivateIP='_direct'
-passwall2.CNShunt.write_ipset_direct='1'
-passwall2.CNShunt.enable_geoview_ip='1'
-passwall2.CNShunt.CN='_direct'
-passwall2.heSNftOR=nodes
-passwall2.heSNftOR.tls_allowInsecure='0'
-passwall2.heSNftOR.uuid='4e5fe7df-665f-42d6-a951-f46e8b60c69d'
-passwall2.heSNftOR.protocol='tuic'
-passwall2.heSNftOR.tuic_udp_relay_mode='native'
-passwall2.heSNftOR.tuic_alpn='h3'
-passwall2.heSNftOR.type='sing-box'
-passwall2.heSNftOR.password='qEr9oi4VhDuF5TJYepnQwAe8nkPEBTqK'
-passwall2.heSNftOR.port='12345'
-passwall2.heSNftOR.tls_serverName='hhrcfhqfv.qzz.io'
-passwall2.heSNftOR.address='hhrcfhqfv.qzz.io'
-passwall2.heSNftOR.remarks='tuic'
-passwall2.heSNftOR.tuic_congestion_control='bbr'
-passwall2.heSNftOR.timeout='60'
-passwall2.heSNftOR.add_mode='1'
-root@ImmortalWrt:~# cat /tmp/etc/passwall2/acl/default.json
-{
-  "outbounds": [
-    {
-      "tls": {
-        "enabled": true,
-        "alpn": [
-          "h3"
-        ],
-        "server_name": "hhrcfhqfv.qzz.io",
-        "disable_sni": false
-      },
-      "type": "tuic",
-      "udp_relay_mode": "native",
-      "zero_rtt_handshake": false,
-      "udp_over_stream": false,
-      "server_port": 12345,
-      "congestion_control": "bbr",
-      "password": "qEr9oi4VhDuF5TJYepnQwAe8nkPEBTqK",
-      "domain_resolver": {
-        "server": "local"
-      },
-      "uuid": "4e5fe7df-665f-42d6-a951-f46e8b60c69d",
-      "server": "hhrcfhqfv.qzz.io",
-      "heartbeat": "3s",
-      "detour": "direct",
-      "tag": "default:tuic"
-    },
-    {
-      "type": "direct",
-      "routing_mark": 255,
-      "tag": "direct"
-    }
-  ],
-  "log": {
-    "timestamp": true,
-    "level": "error",
-    "disabled": false,
-    "output": "\/tmp\/etc\/passwall2\/acl\/default.log"
-  },
-  "dns": {
-    "disable_cache": false,
-    "rules": [
-      {
-        "server": "hosts",
-        "domain": [
-          "cloudflare-dns.com",
-          "dns.google.com"
-        ],
-        "query_type": [
-          "A",
-          "AAAA"
-        ]
-      },
-      {
-        "action": "predefined",
-        "query_type": [
-          "AAAA"
-        ],
-        "rcode": "NOERROR",
-        "domain": [
-          "hhrcfhqfv.qzz.io",
-          "howie.hhrcfhqf.qzz.io"
-        ]
-      },
-      {
-        "disable_cache": false,
-        "action": "route",
-        "domain": [
-          "hhrcfhqfv.qzz.io",
-          "howie.hhrcfhqf.qzz.io"
-        ],
-        "server": "direct"
-      },
-      {
-        "action": "predefined",
-        "query_type": [
-          "AAAA"
-        ],
-        "rule_set": [
-          "geosite-cn"
-        ],
-        "rcode": "NOERROR"
-      },
-      {
-        "disable_cache": false,
-        "action": "route",
-        "rule_set": [
-          "geosite-cn"
-        ],
-        "server": "direct"
-      },
-      {
-        "rcode": "NOERROR",
-        "action": "predefined",
-        "query_type": [
-          "AAAA"
-        ]
-      },
-      {
-        "disable_cache": true,
-        "rewrite_ttl": 30,
-        "server": "remote"
-      }
-    ],
-    "independent_cache": false,
-    "strategy": "prefer_ipv6",
-    "servers": [
-      {
-        "tag": "local",
-        "type": "local"
-      },
-      {
-        "type": "udp",
-        "detour": "direct",
-        "server": "127.0.0.1",
-        "server_port": 2003,
-        "tag": "direct"
-      },
-      {
-        "type": "hosts",
-        "predefined": {
-          "dns.google.com": "8.8.8.8",
-          "cloudflare-dns.com": "1.1.1.1"
-        },
-        "tag": "hosts"
-      },
-      {
-        "domain_resolver": "direct",
-        "server_port": 53,
-        "server": "8.8.8.8",
-        "type": "tcp",
-        "detour": "default:tuic",
-        "tag": "remote"
-      }
-    ],
-    "reverse_mapping": true,
-    "disable_expire": false,
-    "final": "remote"
-  },
-  "route": {
-    "rule_set": [
-      {
-        "type": "local",
-        "format": "binary",
-        "path": "\/tmp\/etc\/passwall2_tmp\/singbox_srss\/geosite-cn.srs",
-        "tag": "geosite-cn"
-      },
-      {
-        "type": "local",
-        "format": "binary",
-        "path": "\/tmp\/etc\/passwall2_tmp\/singbox_srss\/geoip-cn.srs",
-        "tag": "geoip-cn"
-      }
-    ],
-    "rules": [
-      {
-        "action": "hijack-dns",
-        "inbound": "dns-in"
-      },
-      {
-        "action": "sniff",
-        "inbound": "dns-in"
-      },
-      {
-        "action": "sniff",
-        "inbound": "socks-in"
-      },
-      {
-        "action": "sniff",
-        "inbound": "redirect_tcp"
-      },
-      {
-        "action": "sniff",
-        "inbound": "tproxy_udp"
-      },
-      {
-        "outbound": "direct",
-        "inbound": [
-          "redirect_tcp",
-          "tproxy_udp"
-        ],
-        "network": [
-          "tcp",
-          "udp"
-        ],
-        "rule_set": [
-          "geosite-cn",
-          "geoip-cn"
-        ],
-        "action": "route"
-      }
-    ],
-    "default_domain_resolver": {
-      "server": "local"
-    },
-    "final": "default:tuic"
-  },
-  "inbounds": [
-    {
-      "listen": "127.0.0.1",
-      "type": "socks",
-      "listen_port": 1070,
-      "tag": "socks-in"
-    },
-    {
-      "listen": "::",
-      "type": "redirect",
-      "listen_port": 2001,
-      "tag": "redirect_tcp"
-    },
-    {
-      "type": "tproxy",
-      "network": "udp",
-      "listen": "::",
-      "listen_port": 2001,
-      "tag": "tproxy_udp"
-    },
-    {
-      "listen": "127.0.0.1",
-      "type": "direct",
-      "listen_port": 2002,
-      "tag": "dns-in"
-    }
-  ]
-}
-root@ImmortalWrt:~# /tmp/etc/passwall2/bin/sing-box version
-sing-box version 1.14.0
-
-Environment: go1.26.7 linux/arm64
-Tags: with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,with_cloudflared,with_naive_outbound,with_usbip,with_openvpn,with_openconnect,badlinkname,tfogo_checklinkname0,with_musl
-Revision: 0b8995879f29a9b98ee027bc17b75e101445b238
-CGO: enabled
-root@ImmortalWrt:~# opkg list-installed | grep -iE "passwall|sing-box|xray"
-luci-app-passwall2 - 26.9.12-r2
-luci-i18n-passwall2-zh-cn - 26.9.12
-sing-box - 1.12.25-r1
-xray-core - 25.2.21-r1
-root@ImmortalWrt:~#
+root@ImmortalWrt:~# nft list ruleset | grep -E "192.168|10.0|172.16"
+                icmpv6 type { destination-unreachable, time-exceeded, echo-request, echo-reply, nd-router-solicit, nd-router-advert } limit rate 1000/second burst 5 packets counter packets 4 bytes 512 accept comment "!fw4: Allow-ICMPv6-Input"
+                icmpv6 type . icmpv6 code { packet-too-big . 0, parameter-problem . 0, nd-neighbor-solicit . 0, nd-neighbor-advert . 0, parameter-problem . 1 } limit rate 1000/second burst 5 packets counter packets 2 bytes 136 accept comment "!fw4: Allow-ICMPv6-Input"
+                icmpv6 type { destination-unreachable, time-exceeded, echo-request, echo-reply } limit rate 1000/second burst 5 packets counter packets 0 bytes 0 accept comment "!fw4: Allow-ICMPv6-Forward"
+                icmpv6 type . icmpv6 code { packet-too-big . 0, parameter-problem . 0, parameter-problem . 1 } limit rate 1000/second burst 5 packets counter packets 0 bytes 0 accept comment "!fw4: Allow-ICMPv6-Forward"
+                elements = { 10.0.0.1, 127.0.0.1,
+                             192.168.10.1 }
+                elements = { 0.0.0.0/8, 10.0.0.0/8,
+                             172.16.0.0/12, 192.168.0.0/16,
+                elements = { 192.168.1.2 }
+                             1.10.0.0-1.10.9.255 timeout 365d expires 364d10h25m43s760ms, 1.10.11.0-1.10.127.255 timeout 365d expires 364d10h25m43s760ms,
+                             23.247.110.0/24 timeout 365d expires 364d10h25m43s760ms, 23.251.45.0-23.251.46.79 timeout 365d expires 364d10h25m43s760ms,
+                             43.146.90.0-43.151.255.255 timeout 365d expires 364d10h25m43s770ms, 43.152.10.0/24 timeout 365d expires 364d10h25m43s770ms,
+                             43.171.0.0-43.172.14.255 timeout 365d expires 364d10h25m43s770ms, 43.172.16.0-43.172.127.255 timeout 365d expires 364d10h25m43s770ms,
+                             43.172.160.0/19 timeout 365d expires 364d10h25m43s770ms, 43.172.224.0/19 timeout 365d expires 364d10h25m43s770ms,
+                             84.200.172.160-84.200.172.255 timeout 365d expires 364d10h25m43s780ms, 84.200.174.160-84.200.174.255 timeout 365d expires 364d10h25m43s780ms,
+                             103.126.124.0-103.126.135.255 timeout 365d expires 364d10h25m43s790ms, 103.126.210.0/24 timeout 365d expires 364d10h25m43s790ms,
+                             103.141.10.0/23 timeout 365d expires 364d10h25m43s790ms, 103.141.58.0/23 timeout 365d expires 364d10h25m43s790ms,
+                             103.149.181.0/24 timeout 365d expires 364d10h25m43s790ms, 103.149.210.0/23 timeout 365d expires 364d10h25m43s790ms,
+                             103.149.242.0-103.149.247.255 timeout 365d expires 364d10h25m43s790ms, 103.150.10.0/23 timeout 365d expires 364d10h25m43s790ms,
+                             103.150.200.0/23 timeout 365d expires 364d10h25m43s790ms, 103.150.210.0/23 timeout 365d expires 364d10h25m43s790ms,
+                             103.155.110.0/23 timeout 365d expires 364d10h25m43s790ms, 103.155.121.0/24 timeout 365d expires 364d10h25m43s790ms,
+                             103.162.10.0/23 timeout 365d expires 364d10h25m43s800ms, 103.162.32.0/23 timeout 365d expires 364d10h25m43s800ms,
+                             103.165.82.0/23 timeout 365d expires 364d10h25m43s800ms, 103.165.110.0/23 timeout 365d expires 364d10h25m43s800ms,
+                             103.172.160.0/23 timeout 365d expires 364d10h25m43s800ms, 103.172.191.0/24 timeout 365d expires 364d10h25m43s800ms,
+                             103.230.96.0/22 timeout 365d expires 364d10h25m43s800ms, 103.230.110.0/23 timeout 365d expires 364d10h25m43s800ms,
+                             108.186.108.0-108.186.109.127 timeout 365d expires 364d10h25m43s800ms, 108.186.110.0-108.186.111.63 timeout 365d expires 364d10h25m43s800ms,
+                             108.186.207.128/25 timeout 365d expires 364d10h25m43s800ms, 108.186.210.0/24 timeout 365d expires 364d10h25m43s800ms,
+                             114.80.0.0-114.107.255.255 timeout 365d expires 364d10h25m43s800ms, 114.110.0.0/20 timeout 365d expires 364d10h25m43s800ms,
+                             116.214.110.0/23 timeout 365d expires 364d10h25m43s810ms, 116.214.128.0-116.219.255.255 timeout 365d expires 364d10h25m43s810ms,
+                             117.122.210.0/23 timeout 365d expires 364d10h25m43s810ms, 117.122.215.0-117.122.217.255 timeout 365d expires 364d10h25m43s810ms,
+                             119.2.128.0-119.7.255.255 timeout 365d expires 364d10h25m43s810ms, 119.10.0.0/17 timeout 365d expires 364d10h25m43s810ms,
+                             124.172.160.0/19 timeout 365d expires 364d10h25m43s810ms, 124.174.0.0-124.175.31.255 timeout 365d expires 364d10h25m43s810ms,
+                             125.208.0.0/18 timeout 365d expires 364d10h25m43s810ms, 125.210.0.0/15 timeout 365d expires 364d10h25m43s810ms,
+                             132.232.0.0/16 timeout 365d expires 364d10h25m43s820ms, 134.73.10.0/24 timeout 365d expires 364d10h25m43s820ms,
+                             136.175.10.0/24 timeout 365d expires 364d10h25m43s820ms, 137.31.4.0/24 timeout 365d expires 364d10h25m43s820ms,
+                             140.205.0.0-140.207.255.255 timeout 365d expires 364d10h25m43s820ms, 140.210.0.0/16 timeout 365d expires 364d10h25m43s820ms,
+                             144.79.10.0/23 timeout 365d expires 364d10h25m43s820ms, 144.79.28.0/23 timeout 365d expires 364d10h25m43s820ms,
+                             160.22.244.0/22 timeout 365d expires 364d10h25m43s820ms, 160.25.10.0-160.25.13.255 timeout 365d expires 364d10h25m43s820ms,
+                             160.83.110.0/24 timeout 365d expires 364d10h25m43s820ms, 160.187.223.0/24 timeout 365d expires 364d10h25m43s820ms,
+                             160.191.104.0/23 timeout 365d expires 364d10h25m43s820ms, 160.191.110.0/23 timeout 365d expires 364d10h25m43s820ms,
+                             167.167.210.0-167.167.213.255 timeout 365d expires 364d10h25m43s820ms, 167.189.0.0/16 timeout 365d expires 364d10h25m43s820ms,
+                             202.1.110.0-202.1.112.255 timeout 365d expires 364d10h25m43s820ms, 202.3.129.0/24 timeout 365d expires 364d10h25m43s820ms,
+                             202.6.108.0/24 timeout 365d expires 364d10h25m43s820ms, 202.6.110.0/23 timeout 365d expires 364d10h25m43s820ms,
+                             203.0.4.0/22 timeout 365d expires 364d10h25m43s820ms, 203.0.10.0/24 timeout 365d expires 364d10h25m43s820ms,
+                             203.8.110.0/23 timeout 365d expires 364d10h25m43s840ms, 203.8.115.0/24 timeout 365d expires 364d10h25m43s840ms,
+                             203.16.10.0/24 timeout 365d expires 364d10h25m43s840ms, 203.16.12.0/23 timeout 365d expires 364d10h25m43s840ms,
+                             203.18.107.0/24 timeout 365d expires 364d10h25m43s840ms, 203.18.110.0/24 timeout 365d expires 364d10h25m43s840ms,
+                             203.21.10.0/24 timeout 365d expires 364d10h25m43s840ms, 203.21.18.0/24 timeout 365d expires 364d10h25m43s840ms,
+                             203.26.210.0/24 timeout 365d expires 364d10h25m43s840ms, 203.26.214.0/24 timeout 365d expires 364d10h25m43s840ms,
+                             203.27.0.0/24 timeout 365d expires 364d10h25m43s840ms, 203.27.10.0/24 timeout 365d expires 364d10h25m43s840ms,
+                             203.28.10.0/24 timeout 365d expires 364d10h25m43s840ms, 203.28.12.0/24 timeout 365d expires 364d10h25m43s840ms,
+                             203.29.205.0/24 timeout 365d expires 364d10h25m43s840ms, 203.29.210.0/24 timeout 365d expires 364d10h25m43s840ms,
+                             203.55.10.0/24 timeout 365d expires 364d10h25m43s840ms, 203.55.13.0/24 timeout 365d expires 364d10h25m43s840ms,
+                             203.56.110.0/24 timeout 365d expires 364d10h25m43s840ms, 203.56.121.0/24 timeout 365d expires 364d10h25m43s840ms,
+                             203.98.201.0/24 timeout 365d expires 364d10h25m43s840ms, 203.98.210.0/24 timeout 365d expires 364d10h25m43s840ms,
+                             211.92.240.0-211.97.95.255 timeout 365d expires 364d10h25m43s840ms, 211.97.110.0/24 timeout 365d expires 364d10h25m43s840ms,
+                             219.234.10.0-219.234.15.255 timeout 365d expires 364d10h25m43s840ms, 219.234.32.0-219.239.255.255 timeout 365d expires 364d10h25m43s840ms,
+                             2400:1040::/32 timeout 365d expires 364d10h25m44s500ms,
+                             2401:1000::/32 timeout 365d expires 364d10h25m44s510ms,
+                             2402:1000::/32 timeout 365d expires 364d10h25m44s520ms,
+                             2404:1080::/32 timeout 365d expires 364d10h25m44s520ms,
+                             2404:10c0::/32 timeout 365d expires 364d10h25m44s520ms,
+                             2405:1080::/32 timeout 365d expires 364d10h25m44s520ms,
+                             2406:1080::/32 timeout 365d expires 364d10h25m44s540ms,
+                             2408:8956:1090::-2408:8956:10bf:ffff:ffff:ffff:ffff:ffff timeout 365d expires 364d10h25m44s540ms,
+                             2408:8956:10d0::-2408:8956:16bf:ffff:ffff:ffff:ffff:ffff timeout 365d expires 364d10h25m44s540ms,
+                             2409:1000::/20 timeout 365d expires 364d10h25m44s540ms,
+                             2409:2000:1000::-2409:27ff:ffff:ffff:ffff:ffff:ffff:ffff timeout 365d expires 364d10h25m44s540ms,
+                             2602:feda:e82:1000::-2602:feda:e82:3fff:ffff:ffff:ffff:ffff timeout 365d expires 364d10h25m44s540ms,
+                             2602:feda:e84:1000::-2602:feda:e85:4fff:ffff:ffff:ffff:ffff timeout 365d expires 364d10h25m44s540ms,
+                             2a0e:b107:1a32:1000::-2a0e:b107:1a32:ffff:ffff:ffff:ffff:ffff timeout 365d expires 364d10h25m44s550ms,
+                             2a0f:1cc4:1000::/36 timeout 365d expires 364d10h25m44s550ms,
+                             2a0f:1cc5:1000::/48 timeout 365d expires 364d10h25m44s550ms,
+                             2a13:a5c3:1080::-2a13:a5c3:1fff:ffff:ffff:ffff:ffff:ffff timeout 365d expires 364d10h25m44s550ms,
+                             2a14:67c2:1040::/48 timeout 365d expires 364d10h25m44s550ms,
+                             2a14:67c2:1050::/48 timeout 365d expires 364d10h25m44s550ms,
+root@ImmortalWrt:~# ip addr
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host proto kernel_lo
+       valid_lft forever preferred_lft forever
+2: miireg: <> mtu 0 qdisc noop state DOWN group default qlen 1000
+    link/netrom
+3: lan4: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc mq master br-lan state DOWN group default qlen 1000
+    link/ether 9c:9d:7e:7c:e0:fe brd ff:ff:ff:ff:ff:ff
+4: lan3: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc mq master br-lan state DOWN group default qlen 1000
+    link/ether 9c:9d:7e:7c:e0:fe brd ff:ff:ff:ff:ff:ff
+5: lan2: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc mq master br-lan state DOWN group default qlen 1000
+    link/ether 9c:9d:7e:7c:e0:fe brd ff:ff:ff:ff:ff:ff
+6: lan1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc mq master br-lan state DOWN group default qlen 1000
+    link/ether 9c:9d:7e:7c:e0:fe brd ff:ff:ff:ff:ff:ff
+7: wan: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether 9c:9d:7e:b5:f9:b6 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.1.2/24 brd 192.168.1.255 scope global wan
+       valid_lft forever preferred_lft forever
+    inet6 2408:8244:2000:1e4c:9e9d:7eff:feb5:f9b6/128 scope global dynamic noprefixroute
+       valid_lft 218998sec preferred_lft 132598sec
+    inet6 fe80::9e9d:7eff:feb5:f9b6/64 scope link proto kernel_ll
+       valid_lft forever preferred_lft forever
+8: br-lan: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether 9c:9d:7e:7c:e0:fe brd ff:ff:ff:ff:ff:ff
+    inet 192.168.10.1/24 brd 192.168.10.255 scope global br-lan
+       valid_lft forever preferred_lft forever
+    inet6 fde4:a395:2bc5::1/60 scope global noprefixroute
+       valid_lft forever preferred_lft forever
+    inet6 fe80::9e9d:7eff:fe7c:e0fe/64 scope link proto kernel_ll
+       valid_lft forever preferred_lft forever
+9: VPN: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1420 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/none
+    inet 10.0.0.1/24 brd 10.0.0.255 scope global VPN
+       valid_lft forever preferred_lft forever
+10: phy0-ap0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master br-lan state UP group default qlen 1000
+    link/ether 8c:fd:f0:19:ba:a2 brd ff:ff:ff:ff:ff:ff
+11: phy1-ap0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master br-lan state UP group default qlen 1000
+    link/ether 9c:9d:7e:7c:e0:ff brd ff:ff:ff:ff:ff:ff
+12: phy3-ap0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master br-lan state UP group default qlen 1000
+    link/ether 9c:9d:7e:7c:e1:01 brd ff:ff:ff:ff:ff:ff
+root@ImmortalWrt:~# uci show network | grep ipaddr
+network.loopback.ipaddr='127.0.0.1'
+network.lan.ipaddr='192.168.10.1'
