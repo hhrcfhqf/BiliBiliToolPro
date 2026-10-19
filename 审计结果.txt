@@ -1,138 +1,198 @@
-========== 1. /home/ubuntu 文件清单 ==========
-2022-01-06 16:23        220 bytes       /home/ubuntu/.bash_logout
-2022-01-06 16:23        3771 bytes      /home/ubuntu/.bashrc
-2022-01-06 16:23        807 bytes       /home/ubuntu/.profile
-2026-09-16 03:08        400 bytes       /home/ubuntu/.ssh/authorized_keys
-2026-09-16 04:50        0 bytes /home/ubuntu/.cache/motd.legal-displayed
-2026-09-16 04:51        0 bytes /home/ubuntu/.sudo_as_admin_successful
-2026-09-16 05:05        25431 bytes     /home/ubuntu/install.sh
-2026-09-16 12:10        8 bytes /home/ubuntu/.bash_history
-2026-09-19 05:08        369 bytes       /home/ubuntu/panel-v3-source-20260928-025451/security.py
-2026-09-19 05:08        455 bytes       /home/ubuntu/panel-v3-source-20260928-025451/system.py
-2026-09-19 05:08        943 bytes       /home/ubuntu/panel-v3-source-20260928-025451/singbox.py
-2026-09-19 06:42        3888 bytes      /home/ubuntu/panel-v3-source-20260928-025451/system_monitor.py
-2026-09-19 07:33        22837 bytes     /home/ubuntu/fix-panel-v4.sh
-2026-09-19 07:55        34807 bytes     /home/ubuntu/install-oci-linux-lab-modular-v1.sh
-2026-09-19 07:57        0 bytes /home/ubuntu/analyze-panel-modules-v11.sh
-2026-09-19 08:00        4889 bytes      /home/ubuntu/panel-v3-source-20260928-025451/templates.py
-2026-09-19 08:04        8287 bytes      /home/ubuntu/analyze-direct-migration.sh
-2026-09-19 08:05        11214 bytes     /home/ubuntu/migrate-original-panel-to-modules.sh
-2026-09-19 08:07        4620 bytes      /home/ubuntu/extract-original-functions-v2.sh
-2026-09-19 08:08        4245 bytes      /home/ubuntu/audit-direct-migration-v3.sh
-2026-09-19 08:12        3276 bytes      /home/ubuntu/fix-direct-migration-v3-router.sh
-2026-09-19 12:21        13049 bytes     /home/ubuntu/panel-v3-source-20260928-025451/server.py
-2026-09-19 13:06        134 bytes       /home/ubuntu/.Xauthority
-2026-09-23 06:00        2476 bytes      /home/ubuntu/fix-panel-ollama-update-permission.sh
-2026-09-23 06:08        3264 bytes      /home/ubuntu/fix-panel-ollama-update-result.sh
-2026-09-23 06:18        14653 bytes     /home/ubuntu/panel-v3-source-20260928-025451/system_updates.py
-2026-09-28 02:54        1777 bytes      /home/ubuntu/collect-panel-v3-source.sh
-2026-09-28 02:54        1801 bytes      /home/ubuntu/panel-v3-source-20260928-025451/server-api-context.txt
-2026-09-28 02:54        2403 bytes      /home/ubuntu/panel-v3-source-20260928-025451/system-updates-context.txt
-2026-09-28 02:54        405 bytes       /home/ubuntu/panel-v3-source-20260928-025451/system-monitor-context.txt
-2026-09-28 02:54        476 bytes       /home/ubuntu/panel-v3-source-20260928-025451/system-status-context.txt
-2026-09-28 02:54        73 bytes        /home/ubuntu/panel-v3-source-20260928-025451/templates-overview-context.txt
-2026-10-16 05:56        10140 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.2.1.sh
-2026-10-16 05:57        13435 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.3.sh
-2026-10-16 05:58        11271 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.sh
-2026-10-16 05:59        8208 bytes      /home/ubuntu/oci-linux-lab-ai-audit-v2.4.1-fix.sh
-2026-10-16 06:00        6369 bytes      /home/ubuntu/oci-linux-lab-ai-audit-v2.4.1-fixed.sh
-2026-10-16 06:01        12821 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.2.sh
-2026-10-16 06:03        16347 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.3.sh
-2026-10-16 06:06        12265 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.4.sh
-2026-10-16 06:07        12125 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.4-fixed.sh
-2026-10-16 06:08        12801 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.4-fixed2.sh
-2026-10-16 07:35        11095 bytes     /home/ubuntu/oci-panel-final-repair-20261016.sh
+root@hhrcfhqf-oracle-cloud:~# set -eu
 
-========== 2. 文件类型识别 ==========
-/home/ubuntu/fix-panel-ollama-update-permission.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/oci-linux-lab-ai-audit-v2.4.4-fixed.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/oci-linux-lab-ai-audit-v2.4.4.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/oci-linux-lab-ai-audit-v2.4.1-fix.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/extract-original-functions-v2.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/oci-linux-lab-ai-audit-v2.4.4-fixed2.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/install-oci-linux-lab-modular-v1.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/migrate-original-panel-to-modules.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable, with very long lines (303)
-/home/ubuntu/.cache/motd.legal-displayed : empty
-/home/ubuntu/oci-linux-lab-ai-audit-v2.4.1-fixed.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/collect-panel-v3-source.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/analyze-panel-modules-v11.sh : empty
-/home/ubuntu/.sudo_as_admin_successful : empty
-/home/ubuntu/oci-panel-final-repair-20261016.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/.profile : ASCII text
-/home/ubuntu/install.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/oci-linux-lab-ai-audit-v2.4.3.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/fix-panel-ollama-update-result.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/analyze-direct-migration.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/oci-linux-lab-ai-audit-v2.2.1.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/.Xauthority : data
-/home/ubuntu/fix-panel-v4.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/audit-direct-migration-v3.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/panel-v3-source-20260928-025451/server-api-context.txt : ASCII text
-/home/ubuntu/panel-v3-source-20260928-025451/server.py : Python script, Unicode text, UTF-8 text executable
-/home/ubuntu/panel-v3-source-20260928-025451/system-status-context.txt : ASCII text
-/home/ubuntu/panel-v3-source-20260928-025451/singbox.py : Python script, ASCII text executable
-/home/ubuntu/panel-v3-source-20260928-025451/system_monitor.py : Python script, ASCII text executable
-/home/ubuntu/panel-v3-source-20260928-025451/templates.py : HTML document, Unicode text, UTF-8 text
-/home/ubuntu/panel-v3-source-20260928-025451/security.py : Python script, ASCII text executable
-/home/ubuntu/panel-v3-source-20260928-025451/system-updates-context.txt : Unicode text, UTF-8 text
-/home/ubuntu/panel-v3-source-20260928-025451/system.py : Python script, ASCII text executable
-/home/ubuntu/panel-v3-source-20260928-025451/templates-overview-context.txt : Unicode text, UTF-8 text
-/home/ubuntu/panel-v3-source-20260928-025451/system_updates.py : Python script, Unicode text, UTF-8 text executable
-/home/ubuntu/panel-v3-source-20260928-025451/system-monitor-context.txt : ASCII text
-/home/ubuntu/oci-linux-lab-ai-audit-v2.4.2.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/oci-linux-lab-ai-audit-v2.4.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/.bash_logout : ASCII text
-/home/ubuntu/oci-linux-lab-ai-audit-v2.3.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/.bashrc : ASCII text
-/home/ubuntu/fix-direct-migration-v3-router.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
-/home/ubuntu/.bash_history : ASCII text
-/home/ubuntu/.ssh/authorized_keys : OpenSSH RSA public key
+SRC="/opt/1panel-custom-src-v2.3.2"
+TMP="/tmp/1panel-v2.3.2.tar.gz"
+URL="https://github.com/1Panel-dev/1Panel/archive/refs/tags/v2.3.2.tar.gz"
 
-========== 3. 安装包和压缩包 ==========
+echo "========== 1. 检查目标目录 =========="
+if [ -e "$SRC" ]; then
+    echo "停止：目标目录已存在：$SRC"
+    echo "为避免覆盖已有文件，本次不继续。"
+    exit 1
+fi
 
-========== 4. Shell / Python 脚本 ==========
-2026-09-16 05:05        25431 bytes     /home/ubuntu/install.sh
-2026-09-19 05:08        369 bytes       /home/ubuntu/panel-v3-source-20260928-025451/security.py
-2026-09-19 05:08        455 bytes       /home/ubuntu/panel-v3-source-20260928-025451/system.py
-2026-09-19 05:08        943 bytes       /home/ubuntu/panel-v3-source-20260928-025451/singbox.py
-2026-09-19 06:42        3888 bytes      /home/ubuntu/panel-v3-source-20260928-025451/system_monitor.py
-2026-09-19 07:33        22837 bytes     /home/ubuntu/fix-panel-v4.sh
-2026-09-19 07:55        34807 bytes     /home/ubuntu/install-oci-linux-lab-modular-v1.sh
-2026-09-19 07:57        0 bytes /home/ubuntu/analyze-panel-modules-v11.sh
-2026-09-19 08:00        4889 bytes      /home/ubuntu/panel-v3-source-20260928-025451/templates.py
-2026-09-19 08:04        8287 bytes      /home/ubuntu/analyze-direct-migration.sh
-2026-09-19 08:05        11214 bytes     /home/ubuntu/migrate-original-panel-to-modules.sh
-2026-09-19 08:07        4620 bytes      /home/ubuntu/extract-original-functions-v2.sh
-2026-09-19 08:08        4245 bytes      /home/ubuntu/audit-direct-migration-v3.sh
-2026-09-19 08:12        3276 bytes      /home/ubuntu/fix-direct-migration-v3-router.sh
-2026-09-19 12:21        13049 bytes     /home/ubuntu/panel-v3-source-20260928-025451/server.py
-2026-09-23 06:00        2476 bytes      /home/ubuntu/fix-panel-ollama-update-permission.sh
-2026-09-23 06:08        3264 bytes      /home/ubuntu/fix-panel-ollama-update-result.sh
-2026-09-23 06:18        14653 bytes     /home/ubuntu/panel-v3-source-20260928-025451/system_updates.py
-2026-09-28 02:54        1777 bytes      /home/ubuntu/collect-panel-v3-source.sh
-2026-10-16 05:56        10140 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.2.1.sh
-2026-10-16 05:57        13435 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.3.sh
-2026-10-16 05:58        11271 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.sh
-2026-10-16 05:59        8208 bytes      /home/ubuntu/oci-linux-lab-ai-audit-v2.4.1-fix.sh
-2026-10-16 06:00        6369 bytes      /home/ubuntu/oci-linux-lab-ai-audit-v2.4.1-fixed.sh
-2026-10-16 06:01        12821 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.2.sh
-2026-10-16 06:03        16347 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.3.sh
-2026-10-16 06:06        12265 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.4.sh
-2026-10-16 06:07        12125 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.4-fixed.sh
-2026-10-16 06:08        12801 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.4-fixed2.sh
-2026-10-16 07:35        11095 bytes     /home/ubuntu/oci-panel-final-repair-20261016.sh
+echo
+echo "========== 2. 下载 v2.3.2 官方源码 =========="
+curl -fL --connect-timeout 15 --max-time 180 \
+    "$URL" -o "$TMP"
 
-========== 5. 目录、隐藏文件和链接 ==========
-d       /home/ubuntu -> 
-d       /home/ubuntu/.cache -> 
-d       /home/ubuntu/.ssh -> 
-d       /home/ubuntu/panel-v3-source-20260928-025451 -> 
+test -s "$TMP"
+tar -tzf "$TMP" >/dev/null
 
-========== 6. 目录总占用 ==========
-404K    /home/ubuntu
-4.0K    /home/ubuntu/.cache
-8.0K    /home/ubuntu/.ssh
-80K     /home/ubuntu/panel-v3-source-20260928-025451
-404K    /home/ubuntu
+echo
+echo "========== 3. 解压到独立目录 =========="
+mkdir -p "$SRC"
+tar -xzf "$TMP" \
+    --strip-components=1 \
+    -C "$SRC"
 
-========== 清点完成：未删除、未修改任何文件 ==========
+echo
+echo "========== 4. 核实源码版本 =========="
+git -C "$SRC" describe --tags --exact-match 2>/dev/null || true
+grep -nE 'build_frontend|build_core_on_linux|build_agent_on_linux|ASSERT_PATH' \
+    "$SRC/Makefile" || true
+
+echo
+echo "========== 5. 查找前端菜单与路由 =========="
+grep -RInE 'router|routes|menu|side.?bar|菜单' \
+    "$SRC/frontend/src" \
+    --include='*.ts' --include='*.tsx' --include='*.vue' \
+    2>/dev/null | head -120 || true
+
+echo
+echo "========== 6. 查找后端路由注册 =========="
+find "$SRC/core" -maxdepth 4 -type f \
+    \( -iname '*router*.go' -o -iname '*menu*.go' -o -iname '*route*.go' \) \
+    -print | head -100
+
+echo "没有安装构建依赖，没有替换 1Panel 二进制，没有重启服务。"
+========== 1. 检查目标目录 ==========
+
+========== 2. 下载 v2.3.2 官方源码 ==========
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100 5309k    0 5309k    0     0  4177k      0 --:--:--  0:00:01 --:--:-- 6420k
+
+========== 3. 解压到独立目录 ==========
+
+========== 4. 核实源码版本 ==========
+10:ASSERT_PATH= $(BASE_PATH)/core/cmd/server/web/assets
+22:     rm -rf $(ASSERT_PATH)
+28:build_frontend:
+31:build_core_on_linux:
+35:build_agent_on_linux:
+47:build_all: build_frontend build_core_on_linux build_agent_on_linux
+49:build_on_local: clean_assets build_frontend build_core_on_darwin build_agent_on_darwin
+
+========== 5. 查找前端菜单与路由 ==========
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/back-button/index.vue:10:import { routerToName, routerToPath } from '@/utils/router';
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/back-button/index.vue:12:import { useRouter } from 'vue-router';
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/back-button/index.vue:15:const router = useRouter();
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/back-button/index.vue:29:        routerToPath(path);
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/back-button/index.vue:32:        routerToName(name);
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/back-button/index.vue:35:        router.push(to);
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/layout-content/no-such-service.vue:25:import { routerToNameWithQuery } from '@/utils/router';
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/layout-content/no-such-service.vue:32:    routerToNameWithQuery('Library', { uncached: 'true' });
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/api-key-management/editor.vue:160:import { onBeforeRouteLeave } from 'vue-router';
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/config-card/index.vue:18:                <el-tag type="primary" size="small">{{ $t('menu.website') }}</el-tag>
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/backup/index.vue:200:import { routerToFileWithPath } from '@/utils/router';
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/backup/index.vue:276:    routerToFileWithPath(`${backupPath.value}/app/${name.value}/${detailName.value}`);
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/port-jump/index.vue:5:                <el-link icon="Position" @click="jumpToPath(router, '/settings/panel')" type="primary">
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/port-jump/index.vue:22:import { jumpToPath } from '@/utils/router';
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/port-jump/index.vue:23:import { useRouter } from 'vue-router';
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/port-jump/index.vue:26:const router = useRouter();
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/upload/index.vue:218:            title.value = name.value || i18n.global.t('menu.container');
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/task-list/index.vue:2:    <DrawerPro v-model="open" size="large" :header="$t('menu.msgCenter')" @close="handleClose">
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/router-view-cache/index.vue:2:    <router-view v-slot="{ Component, route }">
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/router-view-cache/index.vue:18:    </router-view>
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/router-view-cache/index.vue:38:import type { RouteRecordName } from 'vue-router';
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/TableOperationActions.vue:27:                    <el-dropdown-menu :style="dropdownStyle">
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/TableOperationActions.vue:38:                    </el-dropdown-menu>
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/TableOperationActions.vue:53:type DropdownTrigger = 'hover' | 'click' | 'contextmenu';
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:18:                @row-contextmenu="handleRightClick"
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:34:                        @contextmenu="handleRightClick(cardRow, undefined, $event)"
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:152:            class="context-menu"
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:153:            ref="menuRef"
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:219:const menuRef = ref<HTMLElement | null>(null);
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:381:        if (!menuRef.value) return;
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:383:        const menuRect = menuRef.value.getBoundingClientRect();
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:387:        if (rightClick.value.left + menuRect.width > windowWidth) {
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:388:            adjustedX.value = windowWidth - menuRect.width - 4;
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:393:        if (rightClick.value.top + menuRect.height > windowHeight) {
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:394:            adjustedY.value = windowHeight - menuRect.height - 4;
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:650:.context-menu {
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:664:.context-menu li {
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:668:.context-menu li:hover {
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:669:    background-color: var(--panel-menu-bg-color);
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:671:.context-menu li.disabled {
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/complex/ComplexTable.vue:675:.context-menu li.divided {
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/TableSetting.vue:8:                <el-dropdown-menu>
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/TableSetting.vue:16:                </el-dropdown-menu>
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/table/TableOperations.vue:41:type DropdownTrigger = 'hover' | 'click' | 'contextmenu';
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/fu/FuDropdownItem.vue:45:.fu-dropdown-item.is-disabled :deep(.el-dropdown-menu__item),
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/fu/FuDropdownItem.vue:46:.fu-dropdown-item[data-permission-disabled='true'] :deep(.el-dropdown-menu__item) {
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/fu/FuDropdownItem.vue:56:.fu-dropdown-item.is-disabled :deep(.el-dropdown-menu__item:hover),
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/fu/FuDropdownItem.vue:57:.fu-dropdown-item.is-disabled :deep(.el-dropdown-menu__item:focus),
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/fu/FuDropdownItem.vue:58:.fu-dropdown-item[data-permission-disabled='true'] :deep(.el-dropdown-menu__item:hover),
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/fu/FuDropdownItem.vue:59:.fu-dropdown-item[data-permission-disabled='true'] :deep(.el-dropdown-menu__item:focus) {
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/index.ts:3:import RouterButton from './router-button/index.vue';
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/terminal/dock/index.vue:11:        <span class="terminal-dock-label">{{ $t('menu.terminal') }}</span>
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/terminal/dock/index.vue:17:        :title="$t('menu.terminal')"
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/terminal/dock/index.vue:26:                    <span class="el-dialog__title">{{ $t('menu.terminal') }}</span>
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/terminal/dock/index.vue:95:import ConnectionMenu from '@/components/terminal/connection-menu/index.vue';
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/terminal/dock/index.vue:96:import type { TerminalConnectionOptions } from '@/components/terminal/connection-menu/types';
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/terminal/connection-menu/index.vue:20:        <div class="terminal-connection-menu">
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/terminal/connection-menu/index.vue:263:.terminal-connection-menu {
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/terminal/database.vue:4:        :header="$t('menu.terminal')"
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/router-button/index.vue:3:        <el-card class="router_card p-1 sm:p-0">
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/router-button/index.vue:7:                        class="router_card_button"
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/router-button/index.vue:53:import { routerToNameWithQuery, routerToPathWithQuery } from '@/utils/router';
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/router-button/index.vue:55:import { useRouter } from 'vue-router';
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/router-button/index.vue:74:const router = useRouter();
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/router-button/index.vue:82:            const route = router.resolve(button.path ? { path: button.path } : { name: button.name });
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/router-button/index.vue:98:    if (btn.path) routerToPathWithQuery(btn.path, { uncached: 'true' });
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/router-button/index.vue:99:    else if (btn.name) routerToNameWithQuery(btn.name, { uncached: 'true' });
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/router-button/index.vue:109:    () => [router.currentRoute.value.path, buttonArray.value.map((button) => button.label).join('|')],
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/router-button/index.vue:157:            return btn.path && router.currentRoute.value.path.startsWith(btn.path);
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/router-button/index.vue:217:.router_card {
+/opt/1panel-custom-src-v2.3.2/frontend/src/components/router-button/index.vue:227:.router_card_button {
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Logo.vue:29:import MenuLogo from '@/assets/images/1panel-menu-logo.svg?component';
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Logo.vue:31:import { routerToNameWithQuery } from '@/utils/router';
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Logo.vue:40:    routerToNameWithQuery('home', { t: Date.now() });
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Collapse.vue:14:                <div class="el-dropdown-link" v-if="!menuStore.isCollapse">
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Collapse.vue:28:            <div class="dropdown-menu" v-loading="loading || switchingNode">
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Collapse.vue:37:                    {{ $t('menu.msgCenter') }}
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Collapse.vue:105:import router from '@/routers';
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Collapse.vue:107:import { routerToNameWithQuery } from '@/utils/router';
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Collapse.vue:118:const menuStore = MenuStore();
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Collapse.vue:210:                    menuStore.setMenuList([]);
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Collapse.vue:213:                    routerToNameWithQuery('home', { t: Date.now() });
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Collapse.vue:236:                menuStore.setMenuList([]);
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Collapse.vue:239:                routerToNameWithQuery('home', { t: Date.now() });
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Collapse.vue:271:    routerToNameWithQuery('NodeDashboard', { uncached: 'true' });
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Collapse.vue:290:            router.push({ name: 'entrance', params: { code: entrance.value } });
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Collapse.vue:342:    background-color: var(--el-menu-item-bg-color);
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/Collapse.vue:352:.dropdown-menu {
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/user-info/index.vue:346:import router from '@/routers';
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/user-info/index.vue:350:import { routerToNameWithQuery } from '@/utils/router';
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/user-info/index.vue:547:    routerToNameWithQuery('Safe', { uncached: 'true' });
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/user-info/index.vue:717:                router.push({ name: 'entrance', params: { code: entrance.value } });
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/user-info/index.vue:791:    router.push({ path: '/settings/apikeys', query: { uncached: 'true' } });
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/SubItem.vue:2:    <template v-for="subItem in menuList" :key="subItem.name">
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/SubItem.vue:3:        <el-sub-menu v-if="subItem?.children?.length > 1" :index="subItem.path" popper-class="sidebar-container-popper">
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/SubItem.vue:10:            <SubItem :menuList="subItem.children" :level="level + 1" />
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/SubItem.vue:11:        </el-sub-menu>
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/SubItem.vue:13:        <el-menu-item v-else-if="subItem?.children?.length === 1" :index="subItem.children[0].path">
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/SubItem.vue:20:        </el-menu-item>
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/SubItem.vue:22:        <el-menu-item v-else :index="subItem.path">
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/SubItem.vue:30:        </el-menu-item>
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/SubItem.vue:35:import { RouteRecordRaw } from 'vue-router';
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/components/SubItem.vue:38:defineProps<{ menuList: RouteRecordRaw[]; level?: number }>();
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:3:        class="sidebar-container"
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:14:            <el-menu
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:16:                :router="true"
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:19:                :unique-opened="!menuAccordion"
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:21:                class="custom-menu"
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:23:                <SubItem :menuList="routerMenus" :level="0" />
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:24:            </el-menu>
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:32:import { RouteRecordRaw, useRoute, useRouter } from 'vue-router';
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:37:import { menuList } from '@/routers/router';
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:40:import PrimaryMenu from '@/assets/images/menu-bg.svg?component';
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:45:const router = useRouter();
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:46:const menuStore = MenuStore();
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:47:const { currentNode, isAdmin, menuAccordion, permissions } = useGlobalStore();
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:54:const isCollapse = computed((): boolean => menuStore.isCollapse);
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:56:let routerMenus = computed((): RouteRecordRaw[] => {
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:57:    return buildRegisteredMenuList(menuStore.menuList as RouteRecordRaw[]).filter(
+/opt/1panel-custom-src-v2.3.2/frontend/src/layout/components/Sidebar/index.vue:64:        if (!item.name || !router.hasRoute(item.name)) {
+
+========== 6. 查找后端路由注册 ==========
+/opt/1panel-custom-src-v2.3.2/core/router/ro_router.go
+/opt/1panel-custom-src-v2.3.2/core/init/router/router.go
+/opt/1panel-custom-src-v2.3.2/core/init/migration/helper/menu.go
+/opt/1panel-custom-src-v2.3.2/core/utils/menutree/hide_menu_integrity.go
+/opt/1panel-custom-src-v2.3.2/core/utils/publicshare/routes.go
+
+源码准备完成：/opt/1panel-custom-src-v2.3.2
+没有安装构建依赖，没有替换 1Panel 二进制，没有重启服务。
