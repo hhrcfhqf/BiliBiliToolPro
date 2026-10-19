@@ -1,795 +1,138 @@
-root@hhrcfhqf-oracle-cloud:/opt/oci-zero-cost-lab# cat >/root/audit-ai-agent-v1.sh <<'SH'
-#!/usr/bin/env bash
-set -u
+========== 1. /home/ubuntu 文件清单 ==========
+2022-01-06 16:23        220 bytes       /home/ubuntu/.bash_logout
+2022-01-06 16:23        3771 bytes      /home/ubuntu/.bashrc
+2022-01-06 16:23        807 bytes       /home/ubuntu/.profile
+2026-09-16 03:08        400 bytes       /home/ubuntu/.ssh/authorized_keys
+2026-09-16 04:50        0 bytes /home/ubuntu/.cache/motd.legal-displayed
+2026-09-16 04:51        0 bytes /home/ubuntu/.sudo_as_admin_successful
+2026-09-16 05:05        25431 bytes     /home/ubuntu/install.sh
+2026-09-16 12:10        8 bytes /home/ubuntu/.bash_history
+2026-09-19 05:08        369 bytes       /home/ubuntu/panel-v3-source-20260928-025451/security.py
+2026-09-19 05:08        455 bytes       /home/ubuntu/panel-v3-source-20260928-025451/system.py
+2026-09-19 05:08        943 bytes       /home/ubuntu/panel-v3-source-20260928-025451/singbox.py
+2026-09-19 06:42        3888 bytes      /home/ubuntu/panel-v3-source-20260928-025451/system_monitor.py
+2026-09-19 07:33        22837 bytes     /home/ubuntu/fix-panel-v4.sh
+2026-09-19 07:55        34807 bytes     /home/ubuntu/install-oci-linux-lab-modular-v1.sh
+2026-09-19 07:57        0 bytes /home/ubuntu/analyze-panel-modules-v11.sh
+2026-09-19 08:00        4889 bytes      /home/ubuntu/panel-v3-source-20260928-025451/templates.py
+2026-09-19 08:04        8287 bytes      /home/ubuntu/analyze-direct-migration.sh
+2026-09-19 08:05        11214 bytes     /home/ubuntu/migrate-original-panel-to-modules.sh
+2026-09-19 08:07        4620 bytes      /home/ubuntu/extract-original-functions-v2.sh
+2026-09-19 08:08        4245 bytes      /home/ubuntu/audit-direct-migration-v3.sh
+2026-09-19 08:12        3276 bytes      /home/ubuntu/fix-direct-migration-v3-router.sh
+2026-09-19 12:21        13049 bytes     /home/ubuntu/panel-v3-source-20260928-025451/server.py
+2026-09-19 13:06        134 bytes       /home/ubuntu/.Xauthority
+2026-09-23 06:00        2476 bytes      /home/ubuntu/fix-panel-ollama-update-permission.sh
+2026-09-23 06:08        3264 bytes      /home/ubuntu/fix-panel-ollama-update-result.sh
+2026-09-23 06:18        14653 bytes     /home/ubuntu/panel-v3-source-20260928-025451/system_updates.py
+2026-09-28 02:54        1777 bytes      /home/ubuntu/collect-panel-v3-source.sh
+2026-09-28 02:54        1801 bytes      /home/ubuntu/panel-v3-source-20260928-025451/server-api-context.txt
+2026-09-28 02:54        2403 bytes      /home/ubuntu/panel-v3-source-20260928-025451/system-updates-context.txt
+2026-09-28 02:54        405 bytes       /home/ubuntu/panel-v3-source-20260928-025451/system-monitor-context.txt
+2026-09-28 02:54        476 bytes       /home/ubuntu/panel-v3-source-20260928-025451/system-status-context.txt
+2026-09-28 02:54        73 bytes        /home/ubuntu/panel-v3-source-20260928-025451/templates-overview-context.txt
+2026-10-16 05:56        10140 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.2.1.sh
+2026-10-16 05:57        13435 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.3.sh
+2026-10-16 05:58        11271 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.sh
+2026-10-16 05:59        8208 bytes      /home/ubuntu/oci-linux-lab-ai-audit-v2.4.1-fix.sh
+2026-10-16 06:00        6369 bytes      /home/ubuntu/oci-linux-lab-ai-audit-v2.4.1-fixed.sh
+2026-10-16 06:01        12821 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.2.sh
+2026-10-16 06:03        16347 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.3.sh
+2026-10-16 06:06        12265 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.4.sh
+2026-10-16 06:07        12125 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.4-fixed.sh
+2026-10-16 06:08        12801 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.4-fixed2.sh
+2026-10-16 07:35        11095 bytes     /home/ubuntu/oci-panel-final-repair-20261016.sh
 
-BASE="/opt/oci-zero-cost-lab/panel"
+========== 2. 文件类型识别 ==========
+/home/ubuntu/fix-panel-ollama-update-permission.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/oci-linux-lab-ai-audit-v2.4.4-fixed.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/oci-linux-lab-ai-audit-v2.4.4.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/oci-linux-lab-ai-audit-v2.4.1-fix.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/extract-original-functions-v2.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/oci-linux-lab-ai-audit-v2.4.4-fixed2.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/install-oci-linux-lab-modular-v1.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/migrate-original-panel-to-modules.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable, with very long lines (303)
+/home/ubuntu/.cache/motd.legal-displayed : empty
+/home/ubuntu/oci-linux-lab-ai-audit-v2.4.1-fixed.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/collect-panel-v3-source.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/analyze-panel-modules-v11.sh : empty
+/home/ubuntu/.sudo_as_admin_successful : empty
+/home/ubuntu/oci-panel-final-repair-20261016.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/.profile : ASCII text
+/home/ubuntu/install.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/oci-linux-lab-ai-audit-v2.4.3.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/fix-panel-ollama-update-result.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/analyze-direct-migration.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/oci-linux-lab-ai-audit-v2.2.1.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/.Xauthority : data
+/home/ubuntu/fix-panel-v4.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/audit-direct-migration-v3.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/panel-v3-source-20260928-025451/server-api-context.txt : ASCII text
+/home/ubuntu/panel-v3-source-20260928-025451/server.py : Python script, Unicode text, UTF-8 text executable
+/home/ubuntu/panel-v3-source-20260928-025451/system-status-context.txt : ASCII text
+/home/ubuntu/panel-v3-source-20260928-025451/singbox.py : Python script, ASCII text executable
+/home/ubuntu/panel-v3-source-20260928-025451/system_monitor.py : Python script, ASCII text executable
+/home/ubuntu/panel-v3-source-20260928-025451/templates.py : HTML document, Unicode text, UTF-8 text
+/home/ubuntu/panel-v3-source-20260928-025451/security.py : Python script, ASCII text executable
+/home/ubuntu/panel-v3-source-20260928-025451/system-updates-context.txt : Unicode text, UTF-8 text
+/home/ubuntu/panel-v3-source-20260928-025451/system.py : Python script, ASCII text executable
+/home/ubuntu/panel-v3-source-20260928-025451/templates-overview-context.txt : Unicode text, UTF-8 text
+/home/ubuntu/panel-v3-source-20260928-025451/system_updates.py : Python script, Unicode text, UTF-8 text executable
+/home/ubuntu/panel-v3-source-20260928-025451/system-monitor-context.txt : ASCII text
+/home/ubuntu/oci-linux-lab-ai-audit-v2.4.2.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/oci-linux-lab-ai-audit-v2.4.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/.bash_logout : ASCII text
+/home/ubuntu/oci-linux-lab-ai-audit-v2.3.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/.bashrc : ASCII text
+/home/ubuntu/fix-direct-migration-v3-router.sh : Bourne-Again shell script, Unicode text, UTF-8 text executable
+/home/ubuntu/.bash_history : ASCII text
+/home/ubuntu/.ssh/authorized_keys : OpenSSH RSA public key
 
-echo "=================================================="
-echo " OCI Linux Lab - AI Agent V1 只读架构审计"
-echo "=================================================="
+========== 3. 安装包和压缩包 ==========
 
-echo
-echo "========== 1. ai.py =========="
-nl -ba "$BASE/ai.py"
+========== 4. Shell / Python 脚本 ==========
+2026-09-16 05:05        25431 bytes     /home/ubuntu/install.sh
+2026-09-19 05:08        369 bytes       /home/ubuntu/panel-v3-source-20260928-025451/security.py
+2026-09-19 05:08        455 bytes       /home/ubuntu/panel-v3-source-20260928-025451/system.py
+2026-09-19 05:08        943 bytes       /home/ubuntu/panel-v3-source-20260928-025451/singbox.py
+2026-09-19 06:42        3888 bytes      /home/ubuntu/panel-v3-source-20260928-025451/system_monitor.py
+2026-09-19 07:33        22837 bytes     /home/ubuntu/fix-panel-v4.sh
+2026-09-19 07:55        34807 bytes     /home/ubuntu/install-oci-linux-lab-modular-v1.sh
+2026-09-19 07:57        0 bytes /home/ubuntu/analyze-panel-modules-v11.sh
+2026-09-19 08:00        4889 bytes      /home/ubuntu/panel-v3-source-20260928-025451/templates.py
+2026-09-19 08:04        8287 bytes      /home/ubuntu/analyze-direct-migration.sh
+2026-09-19 08:05        11214 bytes     /home/ubuntu/migrate-original-panel-to-modules.sh
+2026-09-19 08:07        4620 bytes      /home/ubuntu/extract-original-functions-v2.sh
+2026-09-19 08:08        4245 bytes      /home/ubuntu/audit-direct-migration-v3.sh
+2026-09-19 08:12        3276 bytes      /home/ubuntu/fix-direct-migration-v3-router.sh
+2026-09-19 12:21        13049 bytes     /home/ubuntu/panel-v3-source-20260928-025451/server.py
+2026-09-23 06:00        2476 bytes      /home/ubuntu/fix-panel-ollama-update-permission.sh
+2026-09-23 06:08        3264 bytes      /home/ubuntu/fix-panel-ollama-update-result.sh
+2026-09-23 06:18        14653 bytes     /home/ubuntu/panel-v3-source-20260928-025451/system_updates.py
+2026-09-28 02:54        1777 bytes      /home/ubuntu/collect-panel-v3-source.sh
+2026-10-16 05:56        10140 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.2.1.sh
+2026-10-16 05:57        13435 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.3.sh
+2026-10-16 05:58        11271 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.sh
+2026-10-16 05:59        8208 bytes      /home/ubuntu/oci-linux-lab-ai-audit-v2.4.1-fix.sh
+2026-10-16 06:00        6369 bytes      /home/ubuntu/oci-linux-lab-ai-audit-v2.4.1-fixed.sh
+2026-10-16 06:01        12821 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.2.sh
+2026-10-16 06:03        16347 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.3.sh
+2026-10-16 06:06        12265 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.4.sh
+2026-10-16 06:07        12125 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.4-fixed.sh
+2026-10-16 06:08        12801 bytes     /home/ubuntu/oci-linux-lab-ai-audit-v2.4.4-fixed2.sh
+2026-10-16 07:35        11095 bytes     /home/ubuntu/oci-panel-final-repair-20261016.sh
 
-echo
-echo "========== 2. server.py AI 路由 =========="
-grep -n -B8 -A15 -E '/api/ai|ai\.chat|ai\.status' \
-    "$BASE/server.py" || true
+========== 5. 目录、隐藏文件和链接 ==========
+d       /home/ubuntu -> 
+d       /home/ubuntu/.cache -> 
+d       /home/ubuntu/.ssh -> 
+d       /home/ubuntu/panel-v3-source-20260928-025451 -> 
 
-echo
-echo "========== 3. common.py =========="
-nl -ba "$BASE/common.py"
+========== 6. 目录总占用 ==========
+404K    /home/ubuntu
+4.0K    /home/ubuntu/.cache
+8.0K    /home/ubuntu/.ssh
+80K     /home/ubuntu/panel-v3-source-20260928-025451
+404K    /home/ubuntu
 
-echo
-echo "========== 4. system.py =========="
-nl -ba "$BASE/system.py"
-
-echo
-echo "========== 5. system_monitor.py =========="
-nl -ba "$BASE/system_monitor.py"
-
-echo
-echo "========== 6. logs.py =========="
-nl -ba "$BASE/logs.py"
-
-echo
-echo "========== 7. security.py =========="
-nl -ba "$BASE/security.py"
-
-echo
-echo "========== 8. ai.js =========="
-nl -ba "$BASE/static/modules/ai.js"
-
-echo
-echo "========== 9. api.js =========="
-nl -ba "$BASE/static/core/api.js"
-
-echo
-bash /root/audit-ai-agent-v1.shv1.sh===================="2>/dev/null || true
-==================================================
- OCI Linux Lab - AI Agent V1 只读架构审计
-==================================================
-
-========== 1. ai.py ==========
-     1  from __future__ import annotations
-     2  import json, urllib.request
-     3  from .common import system_snapshot, parse_env
-     4  PANEL_ENV_PATH="/etc/oci-zero-cost-lab/panel.env"
-     5  def runtime_env():
-     6      d={}
-     7      try:
-     8          for line in open(PANEL_ENV_PATH,encoding="utf-8"):
-     9              line=line.strip()
-    10              if line and not line.startswith("#") and "=" in line:
-    11                  k,v=line.split("=",1); d[k.strip()]=v.strip().strip("\"'")
-    12      except Exception: pass
-    13      return d
-    14  MODEL=runtime_env().get("OLLAMA_MODEL") or parse_env().get("OLLAMA_MODEL") or "qwen3:4b-instruct"
-    15  URL=runtime_env().get("OLLAMA_URL") or "http://127.0.0.1:11434"
-    16  URL=URL.rstrip("/")+"/api/chat"
-    17  SYSTEM="""你是 OCI Linux Lab 的本地 Linux 学习助手。
-    18  你只能根据用户提供的信息和服务器快照回答，不要假装执行过没有执行的命令。
-    19  默认只提供只读诊断和学习建议。涉及修改 SSH、UFW、防火墙、sing-box、系统服务、软件包或删除数据时，
-    20  只提出方案，不自行执行；必须由用户明确确认后才允许调用受控动作。
-    21  回答以教学为主，解释命令、原理、风险和验证方法。"""
-    22  def status():
-    23      rc,out=__import__("subprocess").getstatusoutput("ollama list")
-    24      return {"available":rc==0,"model":MODEL,"models":out[-4000:]}
-    25  def chat(messages):
-    26      snap=system_snapshot()
-    27      ms=[{"role":"system","content":SYSTEM+"\n当前服务器快照："+json.dumps(snap,ensure_ascii=False)}]
-    28      for m in messages[-24:]:
-    29          c=str(m.get("content",""))[:4000]
-    30          if m.get("role") in ("user","assistant"):
-    31              ms.append({"role":m["role"],"content":c})
-    32      data=json.dumps({"model":MODEL,"messages":ms,"stream":False,
-    33                       "options":{"num_ctx":4096,"num_predict":2048}}).encode()
-    34      req=urllib.request.Request(URL,data=data,headers={"Content-Type":"application/json"})
-    35      try:
-    36          with urllib.request.urlopen(req,timeout=120) as r:
-    37              obj=json.loads(r.read())
-    38          return {"ok":True,"content":obj.get("message",{}).get("content","")}
-    39      except Exception as e:
-    40          return {"ok":False,"error":f"Ollama 请求失败: {e}"}
-
-========== 2. server.py AI 路由 ==========
-163-                        )
-164-                    )
-165-            elif p.path=="/api/learning/courses": self.json({"courses":learning.courses()})
-166-            elif p.path.startswith("/api/learning/lesson/"):
-167-                cid=p.path.rsplit("/",1)[1]; c=learning.lesson(cid)
-168-                self.json({"title":cid,"content":c or "not found"},200 if c else 404)
-169-            elif p.path=="/api/learning/progress": self.json(learning.progress())
-170-            elif p.path=="/api/services": self.json(system.services())
-171:            elif p.path=="/api/ai/status": self.json(ai.status())
-172-            elif p.path=="/api/logs": self.json({"log":logs.get(parse_qs(p.query).get("service",["oci-linux-lab"])[0])})
-173-            else:self.json({"error":"not found"},404)
-174-        except Exception as e:self.json({"error":str(e)},500)
-175-    def do_POST(self):
-176-        p=urlparse(self.path)
-177-        if p.path=="/login":
-178-            form=parse_qs(self.body_raw().decode(errors="replace"))
-179-            u=form.get("user",[""])[0]; pw=form.get("password",[""])[0]; code=form.get("totp",[""])[0]
-180-            if auth.password_ok(u,pw) and auth.verify_totp(code):
-181-                sid,csrf=auth.new_session(); self.send_response(302); self.send_header("Location","/")
-182-                self.send_sid(sid); self.end_headers(); return
-183-            self.page(templates.LOGIN.replace("</form>","</form><p>登录失败</p>").encode(),401); return
-184-        if p.path=="/logout":
-185-            auth.logout(self.sid() or ""); self.send_response(204); self.end_headers(); return
-186-        s=self.need()
-187-        if not s:return
-188-        try:
-189-            d=self.body()
-190-            if d.get("csrf") != s.get("csrf"):
-191-                self.json({"error":"csrf validation failed"},403); return
-192:            if p.path in ("/api/ai/chat","/api/learning/complete") and d.get("confirm") in (None,""):
-193:                if p.path=="/api/ai/chat": self.json(ai.chat(d.get("messages",[])))
-194-                else: self.json({"progress":learning.mark(str(d.get("id","")))})
-195-                return
-196-            if d.get("confirm") not in ("CONFIRM","CHANGE-PORT"):
-197-                self.json({"error":"explicit confirmation required"},400); return
-198:            if p.path=="/api/ai/chat": self.json(ai.chat(d.get("messages",[])))
-199-            elif p.path=="/api/system/update":
-200-                component = str(d.get("component", "")).strip().lower()
-201-
-202-                if component not in (
-203-                    "singbox",
-204-                    "caddy",
-205-                    "ollama",
-206-                    "apt",
-207-                ):
-208-                    self.json(
-209-                        {"error": "unknown update component"},
-210-                        400
-211-                    )
-212-                    return
-213-
-
-========== 3. common.py ==========
-     1  from __future__ import annotations
-     2  import json, os, re, secrets, subprocess, time
-     3  from pathlib import Path
-     4  from typing import Any
-     5
-     6  APP=Path("/opt/oci-zero-cost-lab")
-     7  ETC=Path("/etc/oci-zero-cost-lab")
-     8  SINGBOX=Path("/etc/sing-box/config.json")
-     9  SECRETS=ETC/"secrets.env"
-    10  PANEL_ENV=ETC/"panel.env"
-    11  AUDIT=APP/"audit"
-    12  RUNTIME=APP/"runtime"
-    13
-    14  def run(argv, timeout=15, check=False):
-    15      p=subprocess.run(argv, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-    16                       timeout=timeout, check=False)
-    17      if check and p.returncode:
-    18          raise RuntimeError(p.stdout[-4000:])
-    19      return p.returncode, p.stdout
-    20
-    21  def read_json(path: Path, default=None):
-    22      try: return json.loads(path.read_text())
-    23      except Exception: return default
-    24
-    25  def atomic_json(path: Path, obj: Any):
-    26      path.parent.mkdir(parents=True, exist_ok=True)
-    27      tmp=path.with_suffix(path.suffix+".tmp")
-    28      tmp.write_text(json.dumps(obj, ensure_ascii=False, indent=2))
-    29      os.chmod(tmp, 0o600)
-    30      os.replace(tmp,path)
-    31
-    32  def parse_env(path=SECRETS):
-    33      d={}
-    34      if not path.exists(): return d
-    35      for line in path.read_text(errors="replace").splitlines():
-    36          line=line.strip()
-    37          if not line or line.startswith("#") or "=" not in line: continue
-    38          k,v=line.split("=",1)
-    39          d[k.strip()]=v.strip().strip("'").strip('"')
-    40      return d
-    41
-    42  def env_value(key, default=""):
-    43      return parse_env().get(key, default)
-    44
-    45  def audit(action, detail="", actor="panel", remote=""):
-    46      AUDIT.mkdir(parents=True, exist_ok=True)
-    47      rec={"ts":int(time.time()),"action":action,"detail":detail[:1000],
-    48           "actor":actor,"remote":remote}
-    49      with (AUDIT/"audit.jsonl").open("a") as f:
-    50          f.write(json.dumps(rec,ensure_ascii=False)+"\n")
-    51
-    52  def valid_port(v):
-    53      try: p=int(v)
-    54      except: return False
-    55      return 1 <= p <= 65535
-    56
-    57  def csrf_token():
-    58      return secrets.token_urlsafe(32)
-    59
-    60  def mask(v, keep=4):
-    61      if not v: return ""
-    62      if len(v)<=keep*2: return "*"*len(v)
-    63      return v[:keep]+"…" + v[-keep:]
-    64
-    65  def public_host():
-    66      d=parse_env()
-    67      for k in ("NODE_HOST","PUBLIC_HOST","PANEL_HOST"):
-    68          if d.get(k): return d[k]
-    69      try:
-    70          txt=Path("/etc/caddy/Caddyfile").read_text()
-    71          m=re.search(r'(?m)^\s*([A-Za-z0-9.-]+):2053\s*\{',txt)
-    72          if m:
-    73              h=m.group(1)
-    74              if h.startswith("panel."):
-    75                  return h[len("panel."):]
-    76      except Exception: pass
-    77      return "hhrcfhqfv.qzz.io"
-    78
-    79  def service_active(name):
-    80      rc,_=run(["systemctl","is-active",name])
-    81      return rc==0
-    82
-    83  def listener_snapshot():
-    84      rc,out=run(["ss","-lntup"])
-    85      return out[-12000:]
-    86
-    87  def system_snapshot():
-    88      load=Path("/proc/loadavg").read_text().split()
-    89      mem={}
-    90      for line in Path("/proc/meminfo").read_text().splitlines():
-    91          k,v=line.split(":",1); mem[k]=int(v.strip().split()[0])
-    92      import shutil
-    93      du=shutil.disk_usage("/")
-    94      bbr=Path("/proc/sys/net/ipv4/tcp_congestion_control").read_text().strip()
-    95      return {
-    96        "load":load[:3],
-    97        "memory_mb":{"total":mem.get("MemTotal",0)//1024,
-    98                     "available":mem.get("MemAvailable",0)//1024,
-    99                     "used":(mem.get("MemTotal",0)-mem.get("MemAvailable",0))//1024},
-   100        "disk_gb":{"total":round(du.total/1024**3,1),
-   101                   "used":round(du.used/1024**3,1),
-   102                   "free":round(du.free/1024**3,1)},
-   103        "bbr":bbr,
-   104        "services":{x:service_active(x) for x in ("sing-box","caddy","oci-linux-lab","ollama","oci-free-guard.timer")}
-   105      }
-
-========== 4. system.py ==========
-     1  from .common import *
-     2  from .oci_free import collect as oci_free_collect
-     3
-     4  def status():
-     5      s=system_snapshot()
-     6      s["ufw"]=run(["ufw","status"])[1][-3000:]
-     7      s["reboot_required"]=Path("/var/run/reboot-required").exists()
-     8      s["oci_free"]=oci_free_collect()
-     9      return s
-    10  def services():
-    11      return {x:service_active(x) for x in ("sing-box","caddy","oci-linux-lab","ollama","oci-free-guard.timer")}
-    12  def update_system():
-    13      return run(["systemd-run","--wait","--pipe","--collect","/opt/oci-zero-cost-lab/scripts/system-update"],timeout=900)
-
-========== 5. system_monitor.py ==========
-     1  from __future__ import annotations
-     2
-     3  import subprocess
-     4  from datetime import datetime, timezone
-     5
-     6  MONITORED_SERVICES = {
-     7      "sing-box": "sing-box.service",
-     8      "Caddy": "caddy.service",
-     9      "Panel": "oci-linux-lab.service",
-    10      "Ollama": "ollama.service",
-    11  }
-    12
-    13  ERROR_SERVICES = {
-    14      "sing-box": "sing-box.service",
-    15      "Caddy": "caddy.service",
-    16      "Ollama": "ollama.service",
-    17      "Panel": "oci-linux-lab.service",
-    18  }
-    19
-    20  CURRENT_ERROR_MINUTES = 10
-    21  RECENT_ERROR_MINUTES = 60
-    22
-    23
-    24  def _run(cmd, timeout=15):
-    25      try:
-    26          p = subprocess.run(
-    27              cmd,
-    28              text=True,
-    29              stdout=subprocess.PIPE,
-    30              stderr=subprocess.STDOUT,
-    31              timeout=timeout,
-    32              check=False,
-    33          )
-    34          return p.returncode, (p.stdout or "").strip()
-    35      except Exception as e:
-    36          return 999, str(e)
-    37
-    38
-    39  def _service_active(unit):
-    40      rc, out = _run(["systemctl", "is-active", unit], timeout=5)
-    41      return rc == 0 and out.strip() == "active"
-    42
-    43
-    44  def _failed_units():
-    45      rc, out = _run(
-    46          ["systemctl", "--failed", "--no-legend", "--no-pager"],
-    47          timeout=8,
-    48      )
-    49      if rc not in (0, 1):
-    50          return []
-    51      rows = []
-    52      for line in out.splitlines():
-    53          line = line.strip()
-    54          if not line:
-    55              continue
-    56          parts = line.split(None, 4)
-    57          if parts:
-    58              rows.append({
-    59                  "unit": parts[0],
-    60                  "state": parts[2] if len(parts) > 2 else "",
-    61                  "sub": parts[3] if len(parts) > 3 else "",
-    62                  "description": parts[4] if len(parts) > 4 else "",
-    63              })
-    64      return rows
-    65
-    66
-    67  def _journal_errors(unit, minutes, limit=20):
-    68      rc, out = _run(
-    69          [
-    70              "journalctl",
-    71              "-u",
-    72              unit,
-    73              "-p",
-    74              "err..alert",
-    75              "--since",
-    76              f"{minutes} minutes ago",
-    77              "--no-pager",
-    78              "-o",
-    79              "short-iso",
-    80              "-n",
-    81              str(limit),
-    82          ],
-    83          timeout=12,
-    84      )
-    85      if rc not in (0, 1):
-    86          return []
-    87      lines = [x.strip() for x in out.splitlines() if x.strip()]
-    88      return [
-    89          x for x in lines
-    90          if "No entries" not in x
-    91          and "Journal begins at" not in x
-    92          and "Hint:" not in x
-    93      ]
-    94
-    95
-    96  def collect():
-    97      down = []
-    98      for label, unit in MONITORED_SERVICES.items():
-    99          if not _service_active(unit):
-   100              rc, state = _run(["systemctl", "is-active", unit], timeout=5)
-   101              down.append({
-   102                  "name": label,
-   103                  "unit": unit,
-   104                  "state": state.strip() or f"exit={rc}",
-   105              })
-   106
-   107      failed_units = _failed_units()
-   108      current_errors = {}
-   109      recent = []
-   110
-   111      for label, unit in ERROR_SERVICES.items():
-   112          cur = _journal_errors(unit, CURRENT_ERROR_MINUTES, 8)
-   113          if cur:
-   114              current_errors[label] = {
-   115                  "unit": unit,
-   116                  "window_minutes": CURRENT_ERROR_MINUTES,
-   117                  "items": cur,
-   118              }
-   119
-   120          rec = _journal_errors(unit, RECENT_ERROR_MINUTES, 8)
-   121          for line in rec:
-   122              recent.append({"service": label, "line": line})
-   123
-   124      seen = set()
-   125      recent_unique = []
-   126      for item in reversed(recent):
-   127          key = (item["service"], item["line"])
-   128          if key in seen:
-   129              continue
-   130          seen.add(key)
-   131          recent_unique.append(item)
-   132          if len(recent_unique) >= 30:
-   133              break
-   134      recent_unique.reverse()
-   135
-   136      return {
-   137          "ok": True,
-   138          "generated_at": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
-   139          "current_window_minutes": CURRENT_ERROR_MINUTES,
-   140          "recent_window_minutes": RECENT_ERROR_MINUTES,
-   141          "service_down": down,
-   142          "failed_units": failed_units,
-   143          "current_errors": current_errors,
-   144          "recent_errors": recent_unique,
-   145          "has_issue": bool(down or failed_units or current_errors or recent_unique),
-   146      }
-
-========== 6. logs.py ==========
-     1  from .common import *
-     2  ALLOWED={"oci-linux-lab","sing-box","caddy","ollama"}
-     3  def get(name):
-     4      if name not in ALLOWED: return "service not allowed"
-     5      return run(["journalctl","-u",name,"-n","80","--no-pager","-o","short-iso"])[1][-14000:]
-
-========== 7. security.py ==========
-     1  from .common import *
-     2  def status():
-     3      rpc=run(["systemctl","is-active","rpcbind"])[1].strip()
-     4      return {"ufw":run(["ufw","status"])[1][-5000:],
-     5              "bbr":Path("/proc/sys/net/ipv4/tcp_congestion_control").read_text().strip(),
-     6              "listeners":listener_snapshot(),
-     7              "guard":service_active("oci-free-guard.timer"),
-     8              "rpcbind":rpc}
-     9
-    10
-    11  # === OCI_LINUX_LAB_V3_2_UFW_BEGIN ===
-    12  import json as _v32_json
-    13  import subprocess as _v32_subprocess
-    14
-    15  _V32_UFW_HELPER = "/opt/oci-zero-cost-lab/scripts/ufw-manager"
-    16
-    17
-    18  def _v32_ufw_call(*args):
-    19      if not all(isinstance(x, str) for x in args):
-    20          raise ValueError("invalid UFW argument")
-    21      p = _v32_subprocess.run(
-    22          ["systemd-run", "--quiet", "--wait", "--pipe", "--collect",
-    23           "/usr/bin/python3", _V32_UFW_HELPER, *args],
-    24          text=True,
-    25          stdout=_v32_subprocess.PIPE,
-    26          stderr=_v32_subprocess.STDOUT,
-    27          timeout=45,
-    28          check=False,
-    29      )
-    30      out = (p.stdout or "").strip()
-    31      try:
-    32          data = _v32_json.loads(out)
-    33      except Exception:
-    34          data = {"ok": False, "error": out or f"UFW helper rc={p.returncode}"}
-    35      if p.returncode != 0 and data.get("ok") is not True:
-    36          data.setdefault("returncode", p.returncode)
-    37      return data
-    38
-    39
-    40  def _v32_ufw_status():
-    41      return _v32_ufw_call("status")
-    42
-    43
-    44  def _validate_rule(d):
-    45      if not isinstance(d, dict):
-    46          raise ValueError("请求必须是 JSON object")
-    47      direction = str(d.get("direction", "in")).strip().lower()
-    48      action = str(d.get("action", "allow")).strip().lower()
-    49      protocol = str(d.get("protocol", "tcp")).strip().lower()
-    50      port = str(d.get("port", "")).strip()
-    51      source = str(d.get("source", "Anywhere")).strip()
-    52      comment = str(d.get("comment", "")).strip()
-    53      if direction not in {"in", "out"}:
-    54          raise ValueError("direction 必须为 in/out")
-    55      if action not in {"allow", "deny", "reject", "limit"}:
-    56          raise ValueError("action 非法")
-    57      if protocol not in {"tcp", "udp", "both"}:
-    58          raise ValueError("protocol 必须为 tcp/udp/both")
-    59      import re as _re
-    60      if not _re.fullmatch(r"\d{1,5}(?::\d{1,5})?", port):
-    61          raise ValueError("port 非法")
-    62      pp = [int(x) for x in port.split(":")]
-    63      if not all(1 <= x <= 65535 for x in pp) or pp[0] > pp[-1]:
-    64          raise ValueError("port 必须在 1-65535")
-    65      if len(comment) > 80 or any(ord(x) < 32 or ord(x) == 127 for x in comment):
-    66          raise ValueError("comment 非法")
-    67      return {
-    68          "direction": direction,
-    69          "action": action,
-    70          "protocol": protocol,
-    71          "port": port,
-    72          "source": source or "Anywhere",
-    73          "comment": comment,
-    74      }
-    75
-    76
-    77  def _v32_ufw_add(data):
-    78      rule = _validate_rule(data)
-    79      return _v32_ufw_call(
-    80          "add",
-    81          "--direction", rule["direction"],
-    82          "--action", rule["action"],
-    83          "--protocol", rule["protocol"],
-    84          "--port", rule["port"],
-    85          "--source", rule["source"],
-    86          "--comment", rule["comment"],
-    87      )
-    88
-    89
-    90  def _v32_ufw_delete(number, confirm_ssh=False):
-    91      try:
-    92          n = int(number)
-    93      except Exception as e:
-    94          raise ValueError("number 非法") from e
-    95      if n < 1 or n > 9999:
-    96          raise ValueError("number 范围非法")
-    97      args = ["delete", "--number", str(n)]
-    98      if bool(confirm_ssh):
-    99          args.append("--confirm-ssh")
-   100      return _v32_ufw_call(*args)
-   101
-   102
-   103  def _v32_ufw_modify(data):
-   104      rule = _validate_rule(data)
-   105      try:
-   106          n = int(data.get("number", 0))
-   107      except Exception as e:
-   108          raise ValueError("number 非法") from e
-   109      if n < 1 or n > 9999:
-   110          raise ValueError("number 范围非法")
-   111      args = [
-   112          "modify", "--number", str(n),
-   113          "--direction", rule["direction"],
-   114          "--action", rule["action"],
-   115          "--protocol", rule["protocol"],
-   116          "--port", rule["port"],
-   117          "--source", rule["source"],
-   118          "--comment", rule["comment"],
-   119      ]
-   120      if bool(data.get("confirm_ssh")):
-   121          args.append("--confirm-ssh")
-   122      return _v32_ufw_call(*args)
-   123
-   124
-   125  def _v32_ufw_enable():
-   126      return _v32_ufw_call("enable")
-   127
-   128
-   129  def _v32_ufw_disable():
-   130      return _v32_ufw_call("disable")
-   131
-   132
-   133  # === OCI_LINUX_LAB_V3_2_UFW_END ===
-
-========== 8. ai.js ==========
-     1  import { api } from "../core/api.js";
-     2  import { esc } from "../core/ui.js";
-     3
-     4  export async function render() {
-     5      const a = document.querySelector("#app");
-     6
-     7     a.innerHTML=`
-     8     <h2>AI 助手</h2>
-     9
-    10     <div class="card muted">
-    11     当前连接本机 Ollama / Qwen3。
-    12     可以直接询问 Linux、systemd、网络、sing-box 等问题。
-    13     </div>
-    14
-    15     <div id="chat" class="chat"></div>
-    16
-    17     <div style="margin-top:10px">
-    18     <textarea id="q" rows="3"
-    19     placeholder="例如：解释一下 systemd 服务是怎么启动的"></textarea>
-    20     <button onclick="ask()">发送</button>
-    21     </div>
-    22     `;
-    23
-    24  }
-    25
-    26  async function ask(){
-    27
-    28   const q=$('#q')?.value.trim();
-    29
-    30   if(!q)return;
-    31
-    32   $('#chat').innerHTML+=
-    33   `<div class="msg user">${esc(q)}</div>`;
-    34
-    35   $('#q').value='';
-    36
-    37   const x=await api(
-    38    '/api/ai/chat',
-    39    {
-    40     method:'POST',
-    41     body:JSON.stringify({
-    42      messages:[
-    43       {role:'user',content:q}
-    44      ]
-    45     })
-    46    }
-    47   );
-    48
-    49   if(x){
-    50
-    51    $('#chat').innerHTML+=
-    52    `<div class="msg">${esc(x.content||x.error)}</div>`;
-    53
-    54   }
-    55
-    56  }
-    57
-    58
-    59  window.ask = ask;
-
-========== 9. api.js ==========
-     1  import { showError } from "./ui.js";
-     2
-     3  let CSRF = "";
-     4
-     5  export async function api(url, opt = {}) {
-     6      try {
-     7          opt = {
-     8              credentials: "same-origin",
-     9              ...opt,
-    10              headers: {
-    11                  ...(opt.headers || {})
-    12              }
-    13          };
-    14
-    15          if (opt.method === "POST") {
-    16              opt.headers["Content-Type"] = "application/json";
-    17
-    18              let body = {};
-    19
-    20              if (opt.body) {
-    21                  try {
-    22                      body = JSON.parse(opt.body);
-    23                  } catch (e) {
-    24                      body = {};
-    25                  }
-    26              }
-    27
-    28              body.csrf = CSRF;
-    29              opt.body = JSON.stringify(body);
-    30          }
-    31
-    32          const r = await fetch(url, opt);
-    33
-    34          if (r.status === 401) {
-    35              location = "/login";
-    36              return null;
-    37          }
-    38
-    39          const text = await r.text();
-    40
-    41          let data = null;
-    42
-    43          try {
-    44              data = JSON.parse(text);
-    45          } catch (e) {
-    46              throw new Error(
-    47                  "服务器返回的不是 JSON：HTTP " + r.status
-    48              );
-    49          }
-    50
-    51          if (!r.ok) {
-    52              throw new Error(
-    53                  data.error || ("HTTP " + r.status)
-    54              );
-    55          }
-    56
-    57          return data;
-    58
-    59      } catch (e) {
-    60          console.error(url, e);
-    61
-    62          if (url !== "/api/session") {
-    63              showError(e.message || String(e));
-    64          }
-    65
-    66          return null;
-    67      }
-    68  }
-    69
-    70  export async function initSession() {
-    71      const x = await api("/api/session");
-    72
-    73      if (x && x.csrf) {
-    74          CSRF = x.csrf;
-    75          return true;
-    76      }
-    77
-    78      const y = await api("/api/status");
-    79
-    80      if (y && y.csrf) {
-    81          CSRF = y.csrf;
-    82          return true;
-    83      }
-    84
-    85      return false;
-    86  }
-    87
-    88  export function getCSRF() {
-    89      return CSRF;
-    90  }
-
-========== 10. Panel systemd ==========
-# /etc/systemd/system/oci-linux-lab.service
-[Unit]
-Description=OCI Linux Lab Panel
-After=network-online.target ollama.service
-Wants=network-online.target ollama.service
-
-[Service]
-Type=simple
-WorkingDirectory=/opt/oci-zero-cost-lab
-EnvironmentFile=-/etc/oci-zero-cost-lab/panel.env
-ExecStart=/usr/bin/python3 -m panel.server
-Restart=on-failure
-RestartSec=3
-
-NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=true
-PrivateTmp=true
-PrivateDevices=true
-ProtectKernelTunables=true
-ProtectKernelModules=true
-ProtectControlGroups=true
-RestrictSUIDSGID=true
-RestrictRealtime=true
-LockPersonality=true
-MemoryDenyWriteExecute=false
-
-ReadOnlyPaths=/etc/oci-zero-cost-lab /etc/sing-box /opt/oci-zero-cost-lab/guard
-
-ReadWritePaths=/opt/oci-zero-cost-lab/audit
-ReadWritePaths=/opt/oci-zero-cost-lab/runtime
-ReadWritePaths=/opt/oci-zero-cost-lab/learning/progress
-ReadWritePaths=/opt/oci-zero-cost-lab/ai/memory
-ReadWritePaths=/opt/oci-zero-cost-lab/ai/workspace
-ReadWritePaths=/opt/oci-zero-cost-lab/backups
-
-# APT update inspection / update paths
-ReadWritePaths=/var/lib/apt
-ReadWritePaths=/var/cache/apt
-ReadWritePaths=/var/log/apt
-ReadWritePaths=/usr/local/bin
-ReadWritePaths=/usr/local/lib
-ReadWritePaths=/etc/systemd/system
-ReadWritePaths=/etc/apt
-
-StateDirectory=oci-linux-lab
-StateDirectoryMode=0700
-
-[Install]
-WantedBy=multi-user.target
-
-========== 11. 当前 Panel 状态 ==========
-● oci-linux-lab.service - OCI Linux Lab Panel
-     Loaded: loaded (/etc/systemd/system/oci-linux-lab.service; enabled; vendor preset: enabled)
-     Active: active (running) since Fri 2026-10-16 02:45:39 UTC; 17min ago
-   Main PID: 648659 (python3)
-      Tasks: 1 (limit: 14229)
-     Memory: 12.4M
-        CPU: 646ms
-     CGroup: /system.slice/oci-linux-lab.service
-             └─648659 /usr/bin/python3 -m panel.server
-
-Oct 16 02:45:39 hhrcfhqf-oracle-cloud systemd[1]: Started OCI Linux Lab Panel.
-Oct 16 02:45:39 hhrcfhqf-oracle-cloud python3[648659]: OCI Linux Lab listening on 127.0.0.1:3000
-
-========== 12. 当前 Python 模块语法 ==========
-
->>> Python 语法：PASS
-
-========== 13. 当前 AI 后端直测 ==========
-AI status:
-{'available': True, 'model': 'qwen3:4b-instruct', 'models': 'NAME                 ID              SIZE      MODIFIED    \nqwen3:4b-instruct    0edcdef34593    2.5 GB    3 weeks ago    '}
-
-AI chat:
-{'ok': True, 'content': 'AI 后端正常'}
-
->>> AI 后端：PASS
-
-==================================================
- 审计结束：以上操作没有修改任何文件
-==================================================
+========== 清点完成：未删除、未修改任何文件 ==========
