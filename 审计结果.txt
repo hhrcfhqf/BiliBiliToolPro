@@ -1,808 +1,169 @@
-========== 1. 旧安装脚本 ==========
-语法检查退出码：0
-#!/usr/bin/env bash
-# OCI Zero-Cost Linux Lab - v0.1
-# Fresh Ubuntu/Debian installer. Run as root on the new OCI A1 instance.
-# Design goal: stay inside OCI Always Free resources; proxy + panel + Linux lab + OCI policy guard.
-set -Eeuo pipefail
-IFS=$'\n\t'
-
-VERSION="0.1.1"
-BASE="/opt/oci-zero-cost-lab"
-ETC="/etc/oci-zero-cost-lab"
-SECRETS="$ETC/secrets.env"
-PANEL_DIR="$BASE/panel"
-SINGBOX_DIR="/etc/sing-box"
-CERT_DIR="$BASE/certs"
-BACKUP_DIR="$BASE/backups"
-LOG_DIR="$BASE/logs"
-
-PORT_REALITY=443
-PORT_VLESS_TLS=8443
-PORT_TUIC=8444
-PORT_HY2=8445
-PORT_PANEL=2053
-PORT_PANEL_HTTP=80
-PANEL_PORT=3000
-
-trap 'echo "[ERROR] line $LINENO: command failed: $BASH_COMMAND" >&2' ERR
-
-die(){ echo "[FATAL] $*" >&2; exit 1; }
-info(){ echo -e "\033[1;36m[INFO]\033[0m $*"; }
-warn(){ echo -e "\033[1;33m[WARN]\033[0m $*" >&2; }
-ok(){ echo -e "\033[1;32m[ OK ]\033[0m $*"; }
-
-require_root(){
-  [[ $EUID -eq 0 ]] || die "请用 root 运行：sudo bash install.sh"
-}
-
-detect_os(){
-  [[ -r /etc/os-release ]] || die "找不到 /etc/os-release"
-  . /etc/os-release
-  case "${ID:-}" in
-    ubuntu|debian) ;;
-    *) die "本版本只测试 Ubuntu/Debian。当前：${ID:-unknown}" ;;
-  esac
-  ARCH="$(dpkg --print-architecture 2>/dev/null || true)"
-  [[ "$ARCH" == "arm64" || "$ARCH" == "amd64" ]] || die "仅支持 amd64/arm64；当前：$ARCH"
-  info "OS=$ID $VERSION_ID ARCH=$ARCH"
-}
-
-apt_update_with_retry(){
-  local attempts=0
-  until apt-get update -y; do
-    attempts=$((attempts+1))
-    [[ $attempts -ge 5 ]] && die "apt-get update 连续失败 5 次"
-    warn "apt-get update 失败，30 秒后重试（$attempts/5）"
-    sleep 30
-  done
-}
-
-apt_install_pkg(){
-  local attempts=0
-  until apt-get install -y --no-install-recommends "$@"; do
-    attempts=$((attempts+1))
-    [[ $attempts -ge 5 ]] && die "apt 安装失败：$*"
-    warn "apt 安装失败，30 秒后重试（$attempts/5）"
-    sleep 30
-  done
-}
-
-apt_install(){
-  export DEBIAN_FRONTEND=noninteractive
-  apt_update_with_retry
-  apt_install_pkg \
-    ca-certificates curl wget jq openssl git unzip tar gzip \
-    python3 python3-venv ufw cron procps iproute2 dnsutils \
-    lsof netcat-openbsd sed gawk coreutils
-}
-
-rand_hex(){ openssl rand -hex "$1"; }
-rand_b64url(){ openssl rand -base64 "$1" | tr '+/' '-_' | tr -d '= \n'; }
-
-ensure_tools(){
-  command -v curl >/dev/null || die "curl 安装失败"
-  command -v jq >/dev/null || die "jq 安装失败"
-  command -v openssl >/dev/null || die "openssl 安装失败"
-  python3 - <<'PY'
-import sys
-assert sys.version_info >= (3,9), sys.version
-PY
-}
-
-prompt(){
-  local var="$1" text="$2" default="${3:-}" value
-  if [[ -n "$default" ]]; then
-    read -r -p "$text [$default]: " value || true
-    value="${value:-$default}"
-  else
-    while [[ -z "${value:-}" ]]; do
-      read -r -p "$text: " value || true
-    done
-  fi
-  printf -v "$var" '%s' "$value"
-}
-
-validate_hostname(){
-  [[ "$1" =~ ^[A-Za-z0-9.-]+$ ]] || die "域名格式不正确：$1"
-}
-
-cloudflare_api(){
-  local method="$1" path="$2" data="${3:-}"
-  if [[ -n "$data" ]]; then
-    curl -fsS --retry 3 --connect-timeout 10 \
-      -X "$method" \
-      -H "Authorization: Bearer $CF_TOKEN" \
-      -H "Content-Type: application/json" \
-      "https://api.cloudflare.com/client/v4/$path" \
-      --data "$data"
-  else
-    curl -fsS --retry 3 --connect-timeout 10 \
-      -X "$method" \
-      -H "Authorization: Bearer $CF_TOKEN" \
-      -H "Content-Type: application/json" \
-      "https://api.cloudflare.com/client/v4/$path"
-  fi
-}
-
-cf_find_zone(){
-  CF_ZONE_JSON="$(cloudflare_api GET "zones?name=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$ROOT_DOMAIN")&status=active&per_page=1")"
-  CF_ZONE_ID="$(jq -r '.result[0].id // empty' <<<"$CF_ZONE_JSON")"
-  [[ -n "$CF_ZONE_ID" ]] || die "Cloudflare 找不到 zone：$ROOT_DOMAIN。请确认域名已托管到 Cloudflare 且 Token 有 Zone 读取权限。"
-}
-
-cf_upsert_a(){
-  local fqdn="$1" ip="$2" proxied="$3"
-  local existing id payload result
-  existing="$(cloudflare_api GET "zones/$CF_ZONE_ID/dns_records?type=A&name=$fqdn&per_page=100")"
-  id="$(jq -r '.result[0].id // empty' <<<"$existing")"
-  payload="$(jq -cn --arg type A --arg name "$fqdn" --arg content "$ip" --argjson proxied "$proxied" \
-    '{type:$type,name:$name,content:$content,ttl:1,proxied:$proxied}')"
-  if [[ -n "$id" ]]; then
-    result="$(cloudflare_api PUT "zones/$CF_ZONE_ID/dns_records/$id" "$payload")"
-  else
-    result="$(cloudflare_api POST "zones/$CF_ZONE_ID/dns_records" "$payload")"
-  fi
-  [[ "$(jq -r '.success' <<<"$result")" == "true" ]] || die "Cloudflare DNS 更新失败：$fqdn"
-  ok "Cloudflare DNS: $fqdn -> $ip proxied=$proxied"
-}
-
-setup_cloudflare(){
-  echo
-  echo "=== Cloudflare / 域名 ==="
-  prompt ROOT_DOMAIN "你的 Cloudflare 根域名，例如 example.com"
-  validate_hostname "$ROOT_DOMAIN"
-  prompt NODE_HOST "节点域名" "node.$ROOT_DOMAIN"
-  prompt PANEL_HOST "面板域名" "panel.$ROOT_DOMAIN"
-  prompt REALITY_SNI "Reality handshake/SNI 目标（必须是你确认可用的公开 HTTPS 主机名）"
-  validate_hostname "$NODE_HOST"
-  validate_hostname "$PANEL_HOST"
-  validate_hostname "$REALITY_SNI"
-
-  echo
-  echo "创建一个仅限当前 Zone 的 Cloudflare API Token。建议权限："
-  echo "  Zone / DNS / Read"
-  echo "  Zone / DNS / Edit"
-  echo "Token 不要贴到聊天、脚本仓库或截图中。"
-  prompt CF_TOKEN "Cloudflare API Token"
-  [[ "$CF_TOKEN" =~ ^[A-Za-z0-9_-]+$ ]] || warn "Token 含有特殊字符；脚本仍会尝试使用。"
-
-  cf_find_zone
-  PUBLIC_IP="$(curl -4fsS --max-time 10 https://api.ipify.org || true)"
-  [[ "$PUBLIC_IP" =~ ^[0-9.]+$ ]] || die "无法获取公网 IPv4。请确认 OCI 实例已联网。"
-
-  cf_upsert_a "$NODE_HOST" "$PUBLIC_IP" false
-  cf_upsert_a "$PANEL_HOST" "$PUBLIC_IP" true
-}
-
-install_singbox(){
-  info "安装 sing-box（官方安装脚本）"
-  curl -fsSL https://sing-box.app/install.sh | sh
-  command -v sing-box >/dev/null || die "sing-box 安装失败"
-  sing-box version || die "sing-box 无法运行"
-  mkdir -p "$SINGBOX_DIR" "$CERT_DIR"
-}
-
-install_acme(){
-  if [[ ! -x /root/.acme.sh/acme.sh ]]; then
-    info "安装 acme.sh"
-    curl https://get.acme.sh | sh -s email="admin@$ROOT_DOMAIN"
-  fi
-  [[ -x /root/.acme.sh/acme.sh ]] || die "acme.sh 安装失败"
-}
-
-issue_cert(){
-  info "通过 Cloudflare DNS API 申请 $NODE_HOST 证书"
-  export CF_Token="$CF_TOKEN"
-  /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt >/dev/null
-  /root/.acme.sh/acme.sh --issue --dns dns_cf \
-    -d "$NODE_HOST" -d "$PANEL_HOST" --keylength ec-256
-  mkdir -p "$CERT_DIR"
-  /root/.acme.sh/acme.sh --install-cert -d "$NODE_HOST" --ecc \
-    --fullchain-file "$CERT_DIR/fullchain.pem" \
-    --key-file "$CERT_DIR/privkey.pem" \
-    --reloadcmd "systemctl restart sing-box"
-  chmod 600 "$CERT_DIR/privkey.pem"
-  chmod 644 "$CERT_DIR/fullchain.pem"
-  [[ -s "$CERT_DIR/fullchain.pem" ]] || die "证书链文件为空：$CERT_DIR/fullchain.pem"
-  [[ -s "$CERT_DIR/privkey.pem" ]] || die "私钥文件为空：$CERT_DIR/privkey.pem"
-  openssl x509 -in "$CERT_DIR/fullchain.pem" -noout -subject -issuer -dates >/dev/null || die "证书文件校验失败"
-  ok "证书安装完成（包含节点域名和面板域名）"
-}
-
-generate_reality(){
-  info "生成 Reality keypair"
-  local out
-  out="$(sing-box generate reality-keypair)"
-  REALITY_PRIVATE="$(awk '/PrivateKey:/ {print $2}' <<<"$out")"
-  REALITY_PUBLIC="$(awk '/PublicKey:/ {print $2}' <<<"$out")"
-  [[ -n "$REALITY_PRIVATE" && -n "$REALITY_PUBLIC" ]] || die "Reality keypair 生成失败"
-  REALITY_SHORT_ID="$(rand_hex 4)"
-}
-
-generate_credentials(){
-  NODE_UUID="$(cat /proc/sys/kernel/random/uuid)"
-  TUIC_UUID="$(cat /proc/sys/kernel/random/uuid)"
-  VLESS_REALITY_UUID="$(cat /proc/sys/kernel/random/uuid)"
-  TUIC_PASSWORD="$(rand_b64url 24)"
-  HY2_PASSWORD="$(rand_b64url 24)"
-  SUB_TOKEN="$(rand_b64url 32)"
-  PANEL_USER="admin"
-  PANEL_PASSWORD="$(rand_b64url 18)"
-}
-
-write_secrets(){
-  umask 077
-  cat > "$SECRETS" <<EOF
-ROOT_DOMAIN=$(printf '%q' "$ROOT_DOMAIN")
-NODE_HOST=$(printf '%q' "$NODE_HOST")
-PANEL_HOST=$(printf '%q' "$PANEL_HOST")
-REALITY_SNI=$(printf '%q' "$REALITY_SNI")
-PUBLIC_IP=$(printf '%q' "$PUBLIC_IP")
-NODE_UUID=$(printf '%q' "$NODE_UUID")
-
-========== 2. 旧面板修复脚本 ==========
-语法检查退出码：0
-#!/usr/bin/env bash
-set -euo pipefail
-
-PANEL="/opt/oci-zero-cost-lab/panel"
-SERVER="$PANEL/server.py"
-OCI="$PANEL/oci_free.py"
-AI="$PANEL/ai.py"
-AIA="$PANEL/ai_agent.py"
-AIJS="$PANEL/static/modules/ai.js"
-OCIJS="$PANEL/static/modules/overview-oci.js"
-
-echo "============================================================"
-echo " OCI Linux Lab Panel Final Repair"
-echo "============================================================"
-
-[ -d "$PANEL" ] || {
-    echo "[STOP] Panel directory not found: $PANEL"
-    exit 1
-}
-
-for f in "$SERVER" "$OCI" "$AI" "$AIA" "$AIJS" "$OCIJS"; do
-    [ -f "$f" ] || {
-        echo "[STOP] Missing file: $f"
-        exit 1
-    }
-done
-
-echo
-echo "[1/8] 检查 Python 语法"
-
-python3 -m py_compile \
-    "$SERVER" \
-    "$OCI" \
-    "$AI" \
-    "$AIA"
-
-echo "[OK] Python syntax"
-
-echo
-echo "[2/8] 创建一次性备份"
-
-STAMP="$(date +%Y%m%d-%H%M%S)"
-BACKUP="$PANEL/.repair-backup-$STAMP"
-
-mkdir -p "$BACKUP"
-
-cp -a "$SERVER" "$BACKUP/server.py"
-cp -a "$OCI" "$BACKUP/oci_free.py"
-cp -a "$AI" "$BACKUP/ai.py"
-cp -a "$AIA" "$BACKUP/ai_agent.py"
-cp -a "$AIJS" "$BACKUP/ai.js"
-cp -a "$OCIJS" "$BACKUP/overview-oci.js"
-
-echo "[OK] Backup: $BACKUP"
-
-echo
-echo "[3/8] 修复 server.py BrokenPipe"
-
-python3 - "$SERVER" <<'PY'
-from pathlib import Path
-import sys
-
-p = Path(sys.argv[1])
-s = p.read_text()
-
-old = '''            except Exception as e:self.json({"error":str(e)},500)
-'''
-
-new = '''            except BrokenPipeError:
-                return
-            except Exception as e:
-                try:
-                    self.json({"error":str(e)},500)
-                except BrokenPipeError:
-                    return
-'''
-
-count = s.count(old)
-
-if count == 0:
-    print("[STOP] server.py: 未找到预期异常处理锚点")
-    sys.exit(2)
-
-if count > 2:
-    print(f"[STOP] server.py: 异常处理锚点数量异常: {count}")
-    sys.exit(3)
-
-s = s.replace(old, new)
-
-p.write_text(s)
-print(f"[OK] server.py: replaced {count} exception handler(s)")
-PY
-
-echo
-echo "[4/8] 给 server.py 增加统一的安全响应写入保护"
-
-python3 - "$SERVER" <<'PY'
-from pathlib import Path
-import sys
-
-p = Path(sys.argv[1])
-s = p.read_text()
-
-# 只针对已有 Handler 的 json 方法进行保护。
-# 不创建第二个 HTTP 层。
-marker = "    def json(self, obj, code=200):"
-
-if marker not in s:
-    print("[STOP] 未找到 Handler.json()")
-    sys.exit(4)
-
-start = s.index(marker)
-
-# 找到该方法后面的下一个同级 def
-rest = s[start + len(marker):]
-next_def = rest.find("\n    def ")
-
-if next_def == -1:
-    block_end = len(s)
-else:
-    block_end = start + len(marker) + next_def
-
-block = s[start:block_end]
-
-if "BrokenPipeError" in block:
-    print("[OK] Handler.json() 已经包含 BrokenPipeError 保护")
-    sys.exit(0)
-
-# 不猜测 json() 内部完整实现。
-# 仅在其函数体最外层增加安全捕获需要人工结构，
-# 如果当前版本已经没有异常保护则停止，不做危险替换。
-print("[INFO] Handler.json() 本身未发现 BrokenPipeError")
-print("[INFO] do_GET/do_POST 层已完成 BrokenPipe 防护")
-PY
-
-echo
-echo "[5/8] 修正 oci_free.py 的资源判断语义"
-
-python3 - "$OCI" <<'PY'
-from pathlib import Path
-import sys
-
-p = Path(sys.argv[1])
-s = p.read_text()
-
-# ---------- resource checks ----------
-old = '''def _resource_checks(shape: str | None, ocpus: float | None, memory_gb: float | None, storage_gb: float | None) -> dict[str, Any]:
-    shape_ok: bool | None = None
-    if shape:
-        shape_ok = shape.upper() == "VM.STANDARD.A1.FLEX"
-
-    ocpu_ok = None if ocpus is None else ocpus <= A1_OCPU_MAX
-    memory_ok = None if memory_gb is None else memory_gb <= A1_MEMORY_MAX_GB
-    storage_ok = None if storage_gb is None else storage_gb <= A1_STORAGE_MAX_GB
-
-    checks = {
-        "shape_ok": shape_ok,
-        "ocpu_ok": ocpu_ok,
-        "memory_ok": memory_ok,
-        "storage_ok": storage_ok,
-    }
-
-    concrete = [x for x in checks.values() if isinstance(x, bool)]
-    if any(x is False for x in concrete):
-        overall = "high"
-    elif concrete and all(x is True for x in concrete):
-        overall = "low"
-    else:
-        overall = "unknown"
-    return {"checks": checks, "instance_risk": overall}
-'''
-
-new = '''def _resource_checks(
-    shape: str | None,
-    ocpus: float | None,
-    memory_gb: float | None,
-    storage_gb: float | None,
-) -> dict[str, Any]:
-    # Shape/OCPU/Memory can be checked against the local A1 resource envelope
-    # only when OCI IMDS actually supplied the corresponding values.
-    shape_ok: bool | None = None
-    if shape:
-        shape_ok = shape.upper() == "VM.STANDARD.A1.FLEX"
-
-    ocpu_ok = None if ocpus is None else ocpus <= A1_OCPU_MAX
-    memory_ok = None if memory_gb is None else memory_gb <= A1_MEMORY_MAX_GB
-
-    # IMPORTANT:
-    # storage_gb may be only a local boot-disk inference.
-    # It must NOT be treated as an account-level OCI quota check.
-    storage_ok = None if storage_gb is None else storage_gb <= A1_STORAGE_MAX_GB
-
-    checks = {
-        "shape_ok": shape_ok,
-        "ocpu_ok": ocpu_ok,
-        "memory_ok": memory_ok,
-        "storage_ok": storage_ok,
-    }
-
-    concrete = [x for x in checks.values() if isinstance(x, bool)]
-
-    if any(x is False for x in concrete):
-        overall = "high"
-    elif concrete and all(x is True for x in concrete):
-        overall = "low"
-    else:
-        overall = "unknown"
-
-    return {
-        "checks": checks,
-        "instance_risk": overall,
-    }
-'''
-
-if s.count(old) != 1:
-    print("[STOP] _resource_checks anchor mismatch")
-    sys.exit(10)
-
-s = s.replace(old, new)
-
-# ---------- metadata resource fallback ----------
-old2 = '''    final_ocpus = ocpus if ocpus is not None else cpu_fallback
-    final_memory = memory_gb if memory_gb is not None else memory_fallback
-
-    resource = _resource_checks(shape, ocpus, memory_gb, storage_reference_gb)
-'''
-
-new2 = '''    final_ocpus = ocpus
-    final_memory = memory_gb
-
-    # Do not feed local CPU/memory fallbacks into OCI quota checks.
-    # They are diagnostic-only values.
-    resource = _resource_checks(
-        shape,
-        ocpus,
-        memory_gb,
-        storage_reference_gb,
-    )
-'''
-
-if s.count(old2) != 1:
-    print("[STOP] final resource anchor mismatch")
-    sys.exit(11)
-
-s = s.replace(old2, new2)
-
-# ---------- storage check explicitly local ----------
-old3 = '''    if storage_reference_gb is not None:
-        oci_total = {
-            "gb": storage_reference_gb,
-            "quota_gb": A1_STORAGE_MAX_GB,
-            "usage_percent": round(storage_reference_gb / A1_STORAGE_MAX_GB * 100, 1),
-            "status": "LOCAL_REFERENCE_ONLY",
-        }
-'''
-
-new3 = '''    if storage_reference_gb is not None:
-        oci_total = {
-            "gb": storage_reference_gb,
-            "quota_gb": A1_STORAGE_MAX_GB,
-            "usage_percent": round(
-                storage_reference_gb / A1_STORAGE_MAX_GB * 100,
-                1,
-            ),
-            "status": "LOCAL_REFERENCE_ONLY",
-            "quota_source": "LOCAL_REFERENCE_ONLY",
-            "warning": "这不是 OCI Tenancy 账户级 Block Volume 配额",
-        }
-'''
-
-if s.count(old3) != 1:
-    print("[STOP] oci_total anchor mismatch")
-    sys.exit(12)
-
-s = s.replace(old3, new3)
-
-# ---------- network public IPv4 ----------
-old4 = '''    network = _network()
-    metadata_public_ipv4 = _public_ipv4(metadata)
-    if metadata_public_ipv4:
-
-========== 3. 旧 AI 审计脚本 ==========
-语法检查退出码：0
-#!/usr/bin/env bash
-set -euo pipefail
-
-PANEL="/opt/oci-zero-cost-lab/panel"
-TARGET="$PANEL/ai_agent.py"
-STAMP="$(date +%Y%m%d-%H%M%S)"
-BACKUP="$PANEL/.backup-ai-audit-v2.4.4-fixed2-$STAMP"
-
-echo "============================================================"
-echo " OCI Linux Lab AI Audit V2.4.4 FIXED2"
-echo " audit() 真实 AST 接入 Finding 聚合"
-echo " 不猜 risk_summary() / 不修改聚合核心"
-echo "============================================================"
-
-echo
-echo "[01] 环境检查"
-
-test -d "$PANEL"
-test -f "$TARGET"
-
-echo "PASS: Panel 模块结构存在"
-
-echo
-echo "[02] Python"
-
-python3 -m py_compile "$TARGET"
-
-echo "PASS: 当前 ai_agent.py Python 正常"
-
-echo
-echo "[03] V2.4 聚合函数"
-
-grep -q '^def aggregate_findings(' "$TARGET" || {
-    echo "STOP: aggregate_findings() 不存在"
-    exit 1
-}
-
-grep -q '^def aggregate_risk(' "$TARGET" || {
-    echo "STOP: aggregate_risk() 不存在"
-    exit 1
-}
-
-echo "PASS: aggregate_findings()"
-echo "PASS: aggregate_risk()"
-
-echo
-echo "[04] 创建备份"
-
-mkdir -p "$BACKUP"
-cp -a "$TARGET" "$BACKUP/ai_agent.py"
-
-echo "备份目录：$BACKUP"
-
-echo
-echo "[05] AST 检查真实 audit()"
-
-python3 - "$TARGET" <<'PY'
-import ast
-import sys
-
-path = sys.argv[1]
-
-src = open(path, encoding="utf-8").read()
-tree = ast.parse(src)
-
-audits = [
-    n for n in tree.body
-    if isinstance(n, ast.FunctionDef)
-    and n.name == "audit"
-]
-
-if len(audits) != 1:
-    raise SystemExit(
-        f"STOP: audit() 数量异常：{len(audits)}"
-    )
-
-audit = audits[0]
-
-print(
-    f"audit() 行号: "
-    f"{audit.lineno} - {audit.end_lineno}"
-)
-
-matches = []
-
-for node in ast.walk(audit):
-
-    if not isinstance(node, ast.Assign):
-        continue
-
-    if len(node.targets) != 1:
-        continue
-
-    target = node.targets[0]
-
-    if not isinstance(target, ast.Subscript):
-        continue
-
-    if not (
-        isinstance(target.value, ast.Name)
-        and target.value.id == "data"
-    ):
-        continue
-
-    key = None
-
-    if isinstance(target.slice, ast.Constant):
-        key = target.slice.value
-
-    if key == "risk":
-        matches.append(node)
-
-if len(matches) != 1:
-    print(
-        f"发现 data['risk'] 赋值数量：{len(matches)}"
-    )
-
-    for x in matches:
-        print(
-            "  line",
-            x.lineno,
-            "-",
-            x.end_lineno,
-            ast.unparse(x)
-        )
-
-    raise SystemExit(
-        "STOP: data['risk'] 赋值锚点不是唯一"
-    )
-
-node = matches[0]
-
-print(
-    "PASS: data['risk'] 唯一锚点：",
-    node.lineno,
-    "-",
-    node.end_lineno
-)
-
-print()
-print("原始 risk 赋值：")
-print(ast.unparse(node))
-
-# 输出 RHS 类型，方便审计
-print()
-print("RHS AST 类型：", type(node.value).__name__)
-
-if isinstance(node.value, ast.Call):
-
-    if isinstance(node.value.func, ast.Name):
-        print(
-            "RHS 函数：",
-            node.value.func.id
-        )
-    elif isinstance(node.value.func, ast.Attribute):
-        print(
-            "RHS 方法：",
-            ast.unparse(node.value.func)
-        )
-
-elif isinstance(node.value, ast.Name):
-
-    print(
-        "RHS 变量：",
-        node.value.id
-    )
-
-print()
-print("PASS: 不依赖 risk_summary() 名称")
-PY
-
-echo
-echo "[06] AST 精确修改 audit()"
-
-python3 - "$TARGET" <<'PY'
-import ast
-import sys
-from pathlib import Path
-
-path = Path(sys.argv[1])
-src = path.read_text(encoding="utf-8")
-
-tree = ast.parse(src)
-
-audits = [
-    n for n in tree.body
-    if isinstance(n, ast.FunctionDef)
-    and n.name == "audit"
-]
-
-if len(audits) != 1:
-    raise SystemExit(
-        f"STOP: audit() 数量异常：{len(audits)}"
-    )
-
-audit = audits[0]
-
-matches = []
-
-for node in ast.walk(audit):
-
-    if not isinstance(node, ast.Assign):
-        continue
-
-    if len(node.targets) != 1:
-        continue
-
-    target = node.targets[0]
-
-    if not isinstance(target, ast.Subscript):
-        continue
-
-    if not (
-        isinstance(target.value, ast.Name)
-        and target.value.id == "data"
-    ):
-        continue
-
-    key = None
-
-    if isinstance(target.slice, ast.Constant):
-        key = target.slice.value
-
-    if key == "risk":
-        matches.append(node)
-
-if len(matches) != 1:
-    raise SystemExit(
-        f"STOP: data['risk'] 赋值数量异常：{len(matches)}"
-    )
-
-risk_assign = matches[0]
-
-# ------------------------------------------------------------
-# 保存当前 audit() 原本的风险生成逻辑。
-#
-# 原本：
-#
-# data["risk"] = <真实风险生成表达式>
-#
-# 改为：
-#
-# _raw_risk = <真实风险生成表达式>
-# _raw_findings = _raw_risk.get("findings", [])
-# _aggregated_risk = aggregate_risk(_raw_findings)
-# data["risk"] = _aggregated_risk
-#
-# 不要求 RHS 必须叫 risk_summary。
-# ------------------------------------------------------------
-
-original_rhs = risk_assign.value
-
-new_nodes = [
-
-    ast.Assign(
-        targets=[
-            ast.Name(
-                id="_raw_risk",
-                ctx=ast.Store()
-            )
-        ],
-        value=original_rhs
-    ),
-
-    ast.Assign(
-        targets=[
-            ast.Name(
-                id="_raw_findings",
-                ctx=ast.Store()
-            )
-        ],
-        value=ast.Call(
-            func=ast.Attribute(
-                value=ast.Name(
-                    id="_raw_risk",
-                    ctx=ast.Load()
-                ),
-                attr="get",
-                ctx=ast.Load()
-            ),
+===== 1. 检查安装包内部目录 =====
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/alpha_extract/
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/alpha_extract/GE/
+-rw-r--r-- root/root       301 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/alpha_extract/GE/content.json
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/alpha_extract/GE/generalEffect/
+-rw-r--r-- root/root       383 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/alpha_extract/GE/generalEffect/generalEffect.json
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/alpha_extract/GE/generalEffect/resource1/
+-rw-r--r-- root/root       403 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/alpha_extract/GE/generalEffect/resource1/normal.fsh
+-rw-r--r-- root/root       176 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/alpha_extract/GE/generalEffect/resource1/normal.vsh
+-rw-r--r-- root/root       301 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/alpha_extract/config.json
+-rw-r--r-- root/root       850 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/alpha_extract/event.lua
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/
+-rw-r--r-- root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/LuaRTTI.MarkGen.lua
+-rw-r--r-- root/root       846 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/algorithmConfig.json
+-rw-r--r-- root/root       125 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/content.json
+-rw-r--r-- root/root         2 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/lua-meta.json
+-rw-r--r-- root/root      2515 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/main.scene
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/material/
+-rw-r--r-- root/root      1110 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/material/bloom.material
+-rw-r--r-- root/root      1070 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/material/bloom_blur.material
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/mesh/
+-rw-r--r-- root/root      1258 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/mesh/Quad.mesh
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/rt/
+-rw-r--r-- root/root       497 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/rt/blur_horzBlur.rt
+-rw-r--r-- root/root       497 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/rt/blur_vertBlur.rt
+-rw-r--r-- root/root       495 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/rt/bright.rt
+-rw-r--r-- root/root       497 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/rt/horzBlur.rt
+-rw-r--r-- root/root       546 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/rt/outputTex.rt
+-rw-r--r-- root/root       492 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/rt/sin.rt
+-rw-r--r-- root/root       497 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/rt/vertBlur.rt
+-rw-r--r-- root/root       243 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/sticker.config
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/texture/
+-rw-r--r-- root/root       392 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/texture/matting.texture
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/
+-rw-r--r-- root/root      3319 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/bloom.xshader
+-rw-r--r-- root/root      3478 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/bloomBlur.xshader
+-rw-r--r-- root/root       502 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/bloomFinal.frag
+-rw-r--r-- root/root       215 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/bloomFinal.vert
+-rw-r--r-- root/root       401 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/blur.vert
+-rw-r--r-- root/root      1436 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/blur_horzBlur.frag
+-rw-r--r-- root/root       269 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/blur_horzBlur.vert
+-rw-r--r-- root/root      1460 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/blur_vertBlur.frag
+-rw-r--r-- root/root       269 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/blur_vertBlur.vert
+-rw-r--r-- root/root       170 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/copy.vert
+-rw-r--r-- root/root       171 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/extractBright.frag
+-rw-r--r-- root/root       177 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/extractBright.vert
+-rw-r--r-- root/root       508 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/horzBlur.frag
+-rw-r--r-- root/root       269 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/horzBlur.vert
+-rw-r--r-- root/root       538 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/sin.frag
+-rw-r--r-- root/root       498 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/vertBlur.frag
+-rw-r--r-- root/root       269 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/AmazingFeature/xshader/vertBlur.vert
+-rw-r--r-- root/root       847 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/algorithmConfig.json
+-rw-r--r-- root/root       502 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/config.json
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/cpuMatting/
+-rw-r--r-- root/root        94 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/cpuMatting/content.json
+-rw-r--r-- root/root       327 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur/cpuMatting/sticker.json
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/.vscode/
+-rw-r--r-- root/root       493 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/.vscode/DebugConnect.MarkGen.lua
+-rw-r--r-- root/root    130756 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/.vscode/LuaPanda.lua
+-rw-r--r-- root/root      1108 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/.vscode/launch.json
+-rw-r--r-- root/root       198 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/.vscode/lua.config.json
+-rw-r--r-- root/root        95 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/content.json
+-rw-r--r-- root/root      1827 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/main.scene
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/material/
+-rw-r--r-- root/root      1097 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/material/bloom.material
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/mesh/
+-rw-r--r-- root/root      1258 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/mesh/Quad.mesh
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/rt/
+-rw-r--r-- root/root       495 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/rt/bright.rt
+-rw-r--r-- root/root       497 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/rt/horzBlur.rt
+-rw-r--r-- root/root       546 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/rt/outputTex.rt
+-rw-r--r-- root/root       497 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/rt/vertBlur.rt
+-rw-r--r-- root/root       222 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/sticker.config
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/texture/
+-rw-r--r-- root/root       392 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/texture/matting.texture
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/xshader/
+-rw-r--r-- root/root      4487 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/xshader/bloom.xshader
+-rw-r--r-- root/root       511 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/xshader/bloomFinal.frag
+-rw-r--r-- root/root       215 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/xshader/bloomFinal.vert
+-rw-r--r-- root/root       171 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/xshader/extractBright.frag
+-rw-r--r-- root/root       177 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/xshader/extractBright.vert
+-rw-r--r-- root/root      1436 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/xshader/horzBlur.frag
+-rw-r--r-- root/root       269 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/xshader/horzBlur.vert
+-rw-r--r-- root/root      1460 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/xshader/vertBlur.frag
+-rw-r--r-- root/root       269 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/AmazingFeature/xshader/vertBlur.vert
+-rw-r--r-- root/root      1050 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/algorithmConfig.json
+-rw-r--r-- root/root       341 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/blur_cpu/config.json
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/matting_bg/
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/matting_bg/AmazingFeature/
+-rw-r--r-- root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/matting_bg/AmazingFeature/LuaRTTI.MarkGen.lua
+-rw-r--r-- root/root       846 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/matting_bg/AmazingFeature/algorithmConfig.json
+-rw-r--r-- root/root       125 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/matting_bg/AmazingFeature/content.json
+drwxr-xr-x root/root         0 2026-08-14 07:48 ./opt/bytedance/feishu/RTCSDK_RES/effect/matting_bg/AmazingFeature/image/
+dpkg-deb: error: tar subprocess was killed by signal (Broken pipe)
+
+===== 2. 检查系统图形组件 =====
+xauth install ok installed
+
+===== 3. 模拟安装 =====
+Conf libgtk-3-common (3.24.33-1ubuntu2.2 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [all])
+Conf libgtk-3-0 (3.24.33-1ubuntu2.2 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [arm64])
+Conf libgtk-3-bin (3.24.33-1ubuntu2.2 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [arm64])
+Conf librsvg2-2 (2.52.5+dfsg-3ubuntu0.2 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [arm64])
+Conf libllvm11 (1:11.1.0-6 Ubuntu:22.04/jammy [arm64])
+Conf libphobos2-ldc-shared98 (1:1.28.0-1ubuntu1 Ubuntu:22.04/jammy [arm64])
+Conf libgtkd-3-0 (3.10.0-1ubuntu1 Ubuntu:22.04/jammy [arm64])
+Conf libhtml-tagset-perl (3.20-4 Ubuntu:22.04/jammy [all])
+Conf libhtml-parser-perl (3.76-1ubuntu0.1 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [arm64])
+Conf libio-html-perl (1.004-2 Ubuntu:22.04/jammy [all])
+Conf liblwp-mediatypes-perl (6.04-1 Ubuntu:22.04/jammy [all])
+Conf libhttp-message-perl (6.36-1 Ubuntu:22.04/jammy [all])
+Conf libhtml-form-perl (6.07-1 Ubuntu:22.04/jammy [all])
+Conf libhtml-tree-perl (5.07-2 Ubuntu:22.04/jammy [all])
+Conf libhtml-format-perl (2.12-1.1 Ubuntu:22.04/jammy [all])
+Conf libhttp-cookies-perl (6.10-1 Ubuntu:22.04/jammy [all])
+Conf libhttp-daemon-perl (6.13-1ubuntu0.2 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [all])
+Conf libhttp-negotiate-perl (6.01-1 Ubuntu:22.04/jammy [all])
+Conf libice6 (2:1.0.10-1build2 Ubuntu:22.04/jammy [arm64])
+Conf perl-openssl-defaults (5build2 Ubuntu:22.04/jammy [arm64])
+Conf libnet-ssleay-perl (1.92-1build2 Ubuntu:22.04/jammy [arm64])
+Conf libio-socket-ssl-perl (2.074-2 Ubuntu:22.04/jammy [all])
+Conf libio-stringy-perl (2.111-3 Ubuntu:22.04/jammy [all])
+Conf libnet-http-perl (6.22-1 Ubuntu:22.04/jammy [all])
+Conf libtry-tiny-perl (0.31-1 Ubuntu:22.04/jammy [all])
+Conf libwww-robotrules-perl (6.02-1 Ubuntu:22.04/jammy [all])
+Conf libwww-perl (6.61-1ubuntu0.1 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [all])
+Conf liblwp-protocol-https-perl (6.10-1 Ubuntu:22.04/jammy [all])
+Conf libnet-smtp-ssl-perl (1.04-1 Ubuntu:22.04/jammy [all])
+Conf libmailtools-perl (2.21-1 Ubuntu:22.04/jammy [all])
+Conf libxml-parser-perl (2.46-3ubuntu0.1 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [arm64])
+Conf libxml-twig-perl (1:3.52-1 Ubuntu:22.04/jammy [all])
+Conf libnet-dbus-perl (1.2.0-1build3 Ubuntu:22.04/jammy [arm64])
+Conf librsvg2-common (2.52.5+dfsg-3ubuntu0.2 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [arm64])
+Conf libsm6 (2:1.2.3-1build2 Ubuntu:22.04/jammy [arm64])
+Conf libtie-ixhash-perl (1.23-2.1 Ubuntu:22.04/jammy [all])
+Conf libu2f-udev (1.1.10-3build2 Ubuntu:22.04/jammy [all])
+Conf libvte-2.91-common (0.68.0-1ubuntu0.1 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [arm64])
+Conf libvte-2.91-0 (0.68.0-1ubuntu0.1 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [arm64])
+Conf libvted-3-0 (3.10.0-1ubuntu1 Ubuntu:22.04/jammy [arm64])
+Conf libvulkan1 (1.3.204.1-2 Ubuntu:22.04/jammy [arm64])
+Conf libx11-protocol-perl (0.56-7.1 Ubuntu:22.04/jammy [all])
+Conf libxt6 (1:1.2.1-1 Ubuntu:22.04/jammy [arm64])
+Conf libxmu6 (2:1.1.3-3 Ubuntu:22.04/jammy [arm64])
+Conf libxaw7 (2:1.0.14-1 Ubuntu:22.04/jammy [arm64])
+Conf libxcb-shape0 (1.14-3ubuntu3 Ubuntu:22.04/jammy [arm64])
+Conf libxft2 (2.3.4-1 Ubuntu:22.04/jammy [arm64])
+Conf libxkbfile1 (1:1.1.0-1build3 Ubuntu:22.04/jammy [arm64])
+Conf libxml-xpathengine-perl (0.14-1 Ubuntu:22.04/jammy [all])
+Conf libxv1 (2:1.0.11-1build2 Ubuntu:22.04/jammy [arm64])
+Conf libxxf86dga1 (2:1.1.5-0ubuntu3 Ubuntu:22.04/jammy [arm64])
+Conf mesa-vulkan-drivers (23.2.1-1ubuntu3.1~22.04.4 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [arm64])
+Conf tilix-common (1.9.4-2build1 Ubuntu:22.04/jammy [all])
+Conf tilix (1.9.4-2build1 Ubuntu:22.04/jammy [arm64])
+Conf libglvnd0 (1.4.0-1 Ubuntu:22.04/jammy [arm64])
+Conf libglx0 (1.4.0-1 Ubuntu:22.04/jammy [arm64])
+Conf libgl1 (1.4.0-1 Ubuntu:22.04/jammy [arm64])
+Conf x11-utils (7.7+5build2 Ubuntu:22.04/jammy [arm64])
+Conf x11-xserver-utils (7.7+9build1 Ubuntu:22.04/jammy [arm64])
+Conf libauthen-sasl-perl (2.1600-1.1ubuntu0.1 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [all])
+
+===== 4. 当前监听端口 =====
