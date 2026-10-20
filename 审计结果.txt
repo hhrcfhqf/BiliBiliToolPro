@@ -167,3 +167,65 @@ Conf x11-xserver-utils (7.7+9build1 Ubuntu:22.04/jammy [arm64])
 Conf libauthen-sasl-perl (2.1600-1.1ubuntu0.1 Ubuntu:22.04/jammy-updates, Ubuntu:22.04/jammy-security [all])
 
 ===== 4. 当前监听端口 =====
+root@hhrcfhqf-oracle-cloud:/opt/feishu-client# echo "========== 1. 系统架构 =========="
+uname -m
+docker version --format 'Docker: {{.Server.Version}}'
+docker compose version
+
+echo
+echo "========== 2. 检查容器名称是否冲突 =========="
+if docker container inspect bili_tool_web >/dev/null 2>&1; then
+    echo "停止部署：已存在 bili_tool_web 容器，请先检查它的用途。"
+else
+    echo "容器名称可用"
+fi
+
+echo
+echo "========== 3. 检查 22330 端口 =========="
+if ss -lnt 2>/dev/null | grep -E '(^|[[:space:]])[^[:space:]]*:22330([[:space:]]|$)'; then
+    echo "发现 22330 监听项，请先确认端口用途。"
+else
+    echo "未发现 22330 TCP 监听项"
+fi
+
+echo
+echo "========== 4. 检查官方镜像 ARM64 支持 =========="
+docker buildx imagetools inspect ghcr.io/raywangqvq/bili_tool_web:latest
+========== 1. 系统架构 ==========
+aarch64
+Docker: 29.9.1
+Docker Compose version v5.6.0
+
+========== 2. 检查容器名称是否冲突 ==========
+容器名称可用
+
+========== 3. 检查 22330 端口 ==========
+未发现 22330 TCP 监听项
+
+========== 4. 检查官方镜像 ARM64 支持 ==========
+Name:      ghcr.io/raywangqvq/bili_tool_web:latest
+MediaType: application/vnd.oci.image.index.v1+json
+Digest:    sha256:c66b550ceaca6723b5c51a03c42eeeb848b24375275d34a18c23e451a1cd208b
+           
+Manifests: 
+  Name:        ghcr.io/raywangqvq/bili_tool_web:latest@sha256:206cc0e1f1b03f0f10e4ed358852dcb1205591d734ee0dba5d3555e90197f8da
+  MediaType:   application/vnd.oci.image.manifest.v1+json
+  Platform:    linux/amd64
+               
+  Name:        ghcr.io/raywangqvq/bili_tool_web:latest@sha256:dfaf0417e319ed04e56a06ee37c68099e4bc11dc131444e4d7bd7350598626de
+  MediaType:   application/vnd.oci.image.manifest.v1+json
+  Platform:    linux/arm64
+               
+  Name:        ghcr.io/raywangqvq/bili_tool_web:latest@sha256:a9f6ff842146ee0dc1bbdf1a6cefe9fe894a26b938240d807dac9abcbdd95bef
+  MediaType:   application/vnd.oci.image.manifest.v1+json
+  Platform:    unknown/unknown
+  Annotations: 
+    vnd.docker.reference.digest: sha256:206cc0e1f1b03f0f10e4ed358852dcb1205591d734ee0dba5d3555e90197f8da
+    vnd.docker.reference.type:   attestation-manifest
+               
+  Name:        ghcr.io/raywangqvq/bili_tool_web:latest@sha256:b882961350f7cda24bfaed615f0456a4c58f4f2a88a00247d70834c704487a63
+  MediaType:   application/vnd.oci.image.manifest.v1+json
+  Platform:    unknown/unknown
+  Annotations: 
+    vnd.docker.reference.digest: sha256:dfaf0417e319ed04e56a06ee37c68099e4bc11dc131444e4d7bd7350598626de
+    vnd.docker.reference.type:   attestation-manifest
